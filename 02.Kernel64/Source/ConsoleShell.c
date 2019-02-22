@@ -63,6 +63,9 @@ void kStartConsoleShell(void){
 		case KEY_NUMLOCK:
 		case KEY_SCROLLLOCK:
 			break;
+		case KEY_TAB:
+			kAutoComplete(vcCommandBuffer,&iCommandBufferIndex);
+			break;
 		default:
 			//프롬프트 처리
 			kPrintf("%c",bKey);
@@ -331,5 +334,47 @@ void kCreateTestTask( int iArgc, const char** pcArgv ){
 		}
 		kPrintf("Task2 %d Created\n",i);
 		break;
+	}
+}
+void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex){
+	int i, iResult, iLastCommandIndex;
+	int iLastCommandLength;
+	char* pcCandidateCommand;
+	int idistance;
+	iResult=0;
+	iLastCommandIndex = *iCommandBufferIndex - 1;
+	vcCommandBuffer[*iCommandBufferIndex] = '\0';
+	while(1){
+		if(iLastCommandIndex == 0){
+			break;
+		}
+		if(vcCommandBuffer[iLastCommandIndex]==' '){
+			iLastCommandIndex++;
+			break;
+		}
+		iLastCommandIndex--;
+	}
+	iLastCommandLength = kStrlen(vcCommandBuffer-iLastCommandIndex);
+	for(i=0;i<sizeof(gs_vstCommandTable)/sizeof(SHELLCOMMANDENTRY);i++){
+		if(iLastCommandLength <= kStrlen(gs_vstCommandTable[i].pcCommand)){
+			if(!kMemCmp(&(vcCommandBuffer[iLastCommandIndex]), gs_vstCommandTable[i].pcCommand, iLastCommandLength)){
+				pcCandidateCommand = gs_vstCommandTable[i].pcCommand;
+				iResult++;
+			}
+		}
+	}
+	if(iResult != 1){
+		if(iResult == 0)
+			return;
+		kPrintf("Display all %d possibilities? (y/n)\n",iResult);
+		if(kGetCh()=='n')
+			return;
+	}else{
+		idistance=kMemCpy(&(vcCommandBuffer[*iCommandBufferIndex]), \
+				&(pcCandidateCommand[iLastCommandLength]),\
+				kStrlen(pcCandidateCommand)-iLastCommandLength);
+		vcCommandBuffer[(*iCommandBufferIndex)+idistance] = '\0';
+		kPrintf("%s",&(vcCommandBuffer[*iCommandBufferIndex]));
+		(*iCommandBufferIndex) += idistance;
 	}
 }

@@ -42,4 +42,5 @@ void kReadTimeStampCounter( int iArgc, const char** pcArgv );
 void kMeasureProcessorSpeed( int iArgc, const char** pcArgv );
 void kShowDateTime( int iArgc, const char** pcArgv );
 void kCreateTestTask( int iArgc, const char** pcArgv);
+void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex);
 #endif /* __02_KERNEL64_SOURCE_CONSOLESHELL_H_ */
