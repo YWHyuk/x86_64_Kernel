@@ -341,20 +341,18 @@ void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex){
 	int iLastCommandLength;
 	char* pcCandidateCommand;
 	int idistance;
+
 	iResult=0;
-	iLastCommandIndex = *iCommandBufferIndex - 1;
 	vcCommandBuffer[*iCommandBufferIndex] = '\0';
-	while(1){
-		if(iLastCommandIndex == 0){
-			break;
-		}
+	for(iLastCommandIndex = (*iCommandBufferIndex)-1;iLastCommandIndex>0;iLastCommandIndex--){
 		if(vcCommandBuffer[iLastCommandIndex]==' '){
 			iLastCommandIndex++;
 			break;
 		}
-		iLastCommandIndex--;
 	}
-	iLastCommandLength = kStrlen(vcCommandBuffer-iLastCommandIndex);
+	iLastCommandIndex = (iLastCommandIndex == -1)? 0:iLastCommandIndex;
+	iLastCommandLength = kStrlen(vcCommandBuffer+iLastCommandIndex);
+	//kPrintf("iLastCommand:%s Count:%d\n",vcCommandBuffer+iLastCommandIndex,iLastCommandIndex);
 	for(i=0;i<sizeof(gs_vstCommandTable)/sizeof(SHELLCOMMANDENTRY);i++){
 		if(iLastCommandLength <= kStrlen(gs_vstCommandTable[i].pcCommand)){
 			if(!kMemCmp(&(vcCommandBuffer[iLastCommandIndex]), gs_vstCommandTable[i].pcCommand, iLastCommandLength)){
@@ -363,13 +361,7 @@ void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex){
 			}
 		}
 	}
-	if(iResult != 1){
-		if(iResult == 0)
-			return;
-		kPrintf("Display all %d possibilities? (y/n)\n",iResult);
-		if(kGetCh()=='n')
-			return;
-	}else{
+	if(iResult == 1){
 		idistance=kMemCpy(&(vcCommandBuffer[*iCommandBufferIndex]), \
 				&(pcCandidateCommand[iLastCommandLength]),\
 				kStrlen(pcCandidateCommand)-iLastCommandLength);
