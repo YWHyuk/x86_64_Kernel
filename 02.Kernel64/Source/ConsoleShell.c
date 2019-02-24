@@ -204,16 +204,16 @@ static void kShutdonw( int iArgc, const char** pcArgv ){
 	kReboot();
 }
 static void kSetTImer( int iArgc, const char** pcArgv ){
-	WORD wCount;
-	BOOL bPeriodic;
+	QWORD qwCount;
+	QWORD qwPeriodic;
 	if(iArgc != 3){
 		kPrintf("%s\n","Wrong Parmeter.. ex)settimer 10(ms) 1(periodic)");
 		return;
 	}
-	kAToI(pcArgv[1], 10,&wCount);
-	kAToI(pcArgv[2], 10,&bPeriodic);
-	kPrintf("Time = %d ms, Periodic = %d Change Complete\n",wCount,bPeriodic);
-	kInitializePIT(MSTOCOUNT(wCount), bPeriodic);
+	kAToI(pcArgv[1], 10,&qwCount);
+	kAToI(pcArgv[2], 10,&qwPeriodic);
+	kPrintf("Time = %d ms, Periodic = %d Change Complete\n",qwCount,qwPeriodic);
+	kInitializePIT(MSTOCOUNT(qwCount), qwPeriodic);
 }
 static void kWaitUsingPIT( int iArgc, const char** pcArgv ){
 	long lValue;
@@ -320,8 +320,8 @@ void kTestTask2(void){
 	}
 }
 static void kCreateTestTask( int iArgc, const char** pcArgv ){
-	int i;
-	int lValue;
+	long i;
+	long lValue;
 	if(iArgc != 3 ){
 		kPrintf("%s\n","Wrong Parmeter..");
 	}
@@ -346,14 +346,14 @@ static void kCreateTestTask( int iArgc, const char** pcArgv ){
 }
 static void kChangeTaskPriority( int iArgc, const char** pcArgv){
 	QWORD qwTaskID;
-	BYTE bPriority;
+	QWORD qwPriority;
 	if(iArgc != 3 ){
 		kPrintf("%s\n","Wrong Parmeter..");
 	}
 	kAToI(pcArgv[1]+2, 16,&qwTaskID);
-	kAToI(pcArgv[2], 10,&bPriority);
-	kPrintf("Change Task Prioriy ID [0x%q] Priority[%d] ",qwTaskID,bPriority);
-	if(kChangePriority(qwTaskID, bPriority)==TRUE){
+	kAToI(pcArgv[2], 10,&qwPriority);
+	kPrintf("Change Task Prioriy ID [0x%q] Priority[%d] ",qwTaskID,(BYTE)qwPriority);
+	if(kChangePriority(qwTaskID, (BYTE)qwPriority)==TRUE){
 		kPrintf("Success\n");
 	}else{
 		kPrintf("Fail\n");
@@ -402,7 +402,7 @@ static void kKillTask( int iArgc, const char** pcArgv){
 	}
 }
 static void kCPULoad( int iArgc, const char** pcArgv){
-	kPrintf("Proccesor Load : %d%\n", kGetProcessorLoad());
+	kPrintf("Proccesor Load : %d\n", kGetProcessorLoad());
 }
 //================================================================================
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex){

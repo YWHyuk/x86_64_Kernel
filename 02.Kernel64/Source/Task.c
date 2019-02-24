@@ -172,6 +172,8 @@ void kInitializeScheduler( void ){
 	gs_stScheduler.iProcessorTime = TASK_PROCESSORTIME;
 	gs_stScheduler.pstRunningTCB = kAllocTCB();
 	gs_stScheduler.pstRunningTCB->qwFlags = TASK_FLAGS_HIGHEST;
+	gs_stScheduler.qwProcessorLoad = 0;
+	gs_stScheduler.qwSpendProcessorTimeInIdleTask = 0;
 	for(i=0;i<TASK_MAXREADYLISTCOUNT;i++){
 		InitializeLinkedListManger(&(gs_stScheduler.stReadyList[i]));
 		gs_stScheduler.viExecuteCount[i] = 0;
@@ -294,7 +296,7 @@ void kSchedule(void){
 	//유휴 태스크 처리 분기문
 	if((pstRunningTask->qwFlags & TASK_FLAGS_IDLE)==TASK_FLAGS_IDLE){
 		gs_stScheduler.qwSpendProcessorTimeInIdleTask += \
-				TASK_PROCESSORTIME - gs_stScheduler.iProcessorTime;
+				(TASK_PROCESSORTIME - gs_stScheduler.iProcessorTime);
 	}
 	gs_stScheduler.iProcessorTime = TASK_PROCESSORTIME;
 	//종료를 기다리는 태스크 처리 분기문
@@ -389,8 +391,7 @@ void kIdleTask( void ){
 	while(1){
 		qwCurrentMeasureTickCount = kGetTickCount();
 		qwCurrentSpendTickInIdleTask = gs_stScheduler.qwSpendProcessorTimeInIdleTask;
-
-		if(qwCurrentMeasureTickCount - qwLastMeasureTickCount == 0){
+		if((qwCurrentMeasureTickCount - qwLastMeasureTickCount) == 0){
 			gs_stScheduler.qwProcessorLoad = 0;
 		}
 		else{
@@ -398,6 +399,8 @@ void kIdleTask( void ){
 					(qwCurrentSpendTickInIdleTask - qwLastSpendTickInIdleTask) * 100 / \
 					(qwCurrentMeasureTickCount - qwLastMeasureTickCount);
 		}
+		//kPrintf("LT:%q CT:%q LI:%q CI:%q\n",qwLastMeasureTickCount,qwCurrentMeasureTickCount,\
+		//		qwLastSpendTickInIdleTask,qwCurrentSpendTickInIdleTask);
 		qwLastMeasureTickCount = qwCurrentMeasureTickCount;
 		qwLastSpendTickInIdleTask = qwCurrentSpendTickInIdleTask;
 		kHaltProcessorByLoad();
