@@ -61,6 +61,7 @@ void Main(void){
 	    kMaskPICInterrupt(0);
 	    kEnableInterrupt();
 	    kPrintStringXY(45, iCursorY++, "[pass]");
+	    kCreateTask(TASK_FLAGS_LOWEST|TASK_FLAGS_IDLE, (QWORD)kIdleTask);
 	    kStartConsoleShell();
 LOOP:
 	while(TRUE);

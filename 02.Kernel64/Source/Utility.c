@@ -90,8 +90,46 @@ void kReverseString( char* pcBuffer){
 		pcBuffer[i]=cTemp;
 	}
 }
-long kAToI( const char* pcBuffer, int iRadix)// ¹®ÀÚ¿­À»  ÀÎÀÚ·Î ÁØ Áø¼öÇüÅÂ·Î ÇØ¼®ÇØ¼­ Á¤¼öÇüÀ¸·Î ¸¸µç´Ù.
+long kAToI( const char* pcBuffer, int iRadix, long* lReturn)// ¹®ÀÚ¿­À»  ÀÎÀÚ·Î ÁØ Áø¼öÇüÅÂ·Î ÇØ¼®ÇØ¼­ Á¤¼öÇüÀ¸·Î ¸¸µç´Ù.
 {
+	switch(iRadix){
+	case 16:
+		*lReturn = kHexStringToQword(pcBuffer);
+		break;
+	case 10:
+	default:
+		*lReturn = kDecimalStringToLong(pcBuffer);
+	}
+	return *lReturn;
+}
+QWORD kHexStringToQword( const char* pcBuffer){
+	int iLengh,i;
+	long lReturn=0L;
+	char cTemp;
+
+	iLengh= kStrlen(pcBuffer);
+	for(i=0;i<iLengh;i++){
+		lReturn <<= 4;
+		cTemp= pcBuffer[i];
+		if(cTemp>='0' && cTemp<='9'){
+			cTemp-= '0';
+		}else if(cTemp>='A' && cTemp<='Z'){
+			cTemp = cTemp - 'A' + 10;
+		}
+		else if(cTemp>='a' && cTemp<='z'){
+			cTemp = cTemp - 'a' + 10;
+		}else{
+			return -1;
+		}
+		if(cTemp>=16){
+			kPrintf("kHexStringToQword() Wrong value...\n");
+			return -1;
+		}
+		lReturn += cTemp;
+	}
+	return lReturn;
+}
+long kDecimalStringToLong( const char* pcBuffer){
 	int iLengh,i;
 	long lReturn=0L;
 	char cTemp;
@@ -101,46 +139,44 @@ long kAToI( const char* pcBuffer, int iRadix)// ¹®ÀÚ¿­À»  ÀÎÀÚ·Î ÁØ Áø¼öÇüÅÂ·Î Ç
 
 	iLengh= kStrlen(pcBuffer);
 	for(i=bMinus;i<iLengh;i++){
-		lReturn*= iRadix;
+		lReturn*= 10;
 		cTemp= pcBuffer[i];
 		if(cTemp>='0' && cTemp<='9'){
 			cTemp-= '0';
-		}else if(cTemp>='A' && cTemp<='Z'){
-			cTemp = cTemp - 'A' + 10;
-		}
-		else if(cTemp>='a' && cTemp<='F'){
-			cTemp = cTemp - 'a' + 10;
 		}else{
+			kPrintf("kDecimalStringToQword() Wrong value...\n");
 			return -1;
 		}
-		if(cTemp>=iRadix)
-			return -1;
 		lReturn += cTemp;
 
 	}
 	if(bMinus ==TRUE)
-		lReturn= -lReturn;
+		lReturn= -1* lReturn;
 	return lReturn;
 }
-QWORD kHexStringToQword( const char* pcBuffer);//
-long kDecimalStringToLong( const char* pcBuffer);
 int kIToA( long lValue, char* pcBuffer, int iRadix){
+	int iReturn;
+	switch(iRadix){
+	case 16:
+		iReturn = kHexToString(lValue, pcBuffer);
+		break;
+	case 10:
+	default:
+		iReturn = kDecimalToString(lValue, pcBuffer);
+		break;
+	}
+	return iReturn;
+}
+int kHexToString(QWORD qwValue, char* pcBuffer){
 	int iBufferIndex=0;
 	long iTemp;
-	BOOL bMinus=FALSE;
-	if(lValue < 0){
-		pcBuffer[iBufferIndex]='-';
-		iBufferIndex++;
-		lValue *= -1;
-		bMinus = TRUE;
-	}
-	if(lValue == 0){
+	if(qwValue == 0){
 		pcBuffer[iBufferIndex]= '0';
 		iBufferIndex++;
 	}
-	while(lValue > 0){
-		iTemp = lValue % iRadix;
-		lValue /= iRadix;
+	while(qwValue > 0){
+		iTemp = qwValue % 16;
+		qwValue /= 16;
 		if(iTemp>=10)
 			pcBuffer[iBufferIndex]= 'A'+iTemp-10;
 		else
@@ -148,11 +184,32 @@ int kIToA( long lValue, char* pcBuffer, int iRadix){
 		iBufferIndex++;
 	}
 	pcBuffer[iBufferIndex]= '\0';
-	kReverseString(pcBuffer+bMinus);
+	kReverseString(pcBuffer);
 	return iBufferIndex;
 }
-int kHexToString(QWORD qwValue, char* pcBuffer);
-int kDecimalToString(long lvalue, char* pcBuffer);
+int kDecimalToString(long lValue, char* pcBuffer){
+	int iBufferIndex=0;
+	long iTemp;
+	BOOL bMinus=FALSE;
+	if(lValue == 0){
+		pcBuffer[iBufferIndex]= '0';
+		iBufferIndex++;
+	}
+	if(lValue < 0){
+		bMinus = TRUE;
+		pcBuffer[0] = '-';
+		lValue = -lValue;
+	}
+	while(lValue > 0){
+		iTemp = lValue % 10;
+		lValue /= 10;
+		pcBuffer[iBufferIndex]= '0'+iTemp;
+		iBufferIndex++;
+	}
+	pcBuffer[iBufferIndex]= '\0';
+	kReverseString(pcBuffer+ bMinus);
+	return iBufferIndex;
+}
 int kSPrintf( char* pcBuffer, const char* pcFormatString, ...	){
 	va_list ap;
 	int iReturn;

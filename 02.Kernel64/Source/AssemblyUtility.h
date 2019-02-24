@@ -14,4 +14,5 @@ QWORD kReadRFLAGS(void);
 void kSoftInterrupt(void);
 QWORD kReadTSC(void);
 void kContextSwitch(CONTEXT* pstCurrentContext, CONTEXT* pstNextContext);
+void kHlt( void );
 #endif

@@ -10,19 +10,25 @@
 #include "Pit.h"
 #include "RTC.h"
 #include "AssemblyUtility.h"
+#include "Task.h"
+#include "ISR.h"
 SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"help", "Show Help",kHelp},
 		{"cls", "Clear the Screen", kCls},
 		{"totalram", "Show a Total Ram Size", kShowTotalRamSize},
 		{"strtod", "String To Radix Convert",kStringToDecimalHexTest},
 		{"shutdown", "Power off the machine",kShutdonw},
-		{"strtod", "String To Decial/Hex Convert",kStringToDecimalHexTest},
 		{"settimer","Set PIT Controller Counter0, ex)settimer 10(ms) 1(periodic)",kSetTImer},
 		{"wait","Wait ms Using PIT, ex)wait 100(ms)",kWaitUsingPIT},
 		{"rdtsc","Read Time Stamp Counter", kReadTimeStampCounter},
 		{"cpuspeed","Measure Processor Speed", kMeasureProcessorSpeed},
 		{"date","Show Date And Time",kShowDateTime},
-		{"createtask","Create Task",kCreateTestTask}
+		{"createtask","Create Task",kCreateTestTask},
+		{"changepriority","Change Task Priority, ex)changepriority 1(ID) 2(Priority)",\
+				kChangeTaskPriority},
+		{"tasklist","Show Task List",kShowTaskList},
+		{"killtask","End task",kKillTask},
+		{"cpuload","Show Processor Load", kCPULoad}
 };
 void kStartConsoleShell(void){
 	char vcCommandBuffer[CONSOLESHELL_MAXCOMMANDBUFFERCOUNT];
@@ -137,7 +143,7 @@ void kExecuteCommand(const char* pcCommandBuffer){
 //void kInitializeParameter( PARAMETERLIST* pstList, const char* pcParameter){}
 //int kGetNextParameter( PARAMETERLIST* pstList, char* pcParameter){}
 //실제 커맨드 함수
-void kHelp( int iArgc, const char** pcArgv ){
+static void kHelp( int iArgc, const char** pcArgv ){
 	int iCount;
 	int i,iCommandNumber;
 	int iX,iY;
@@ -160,29 +166,28 @@ void kHelp( int iArgc, const char** pcArgv ){
 	}
 	kPrintf("\n");
 }
-void kCls( int iArgc, const char** pcArgv ){
+static void kCls( int iArgc, const char** pcArgv ){
 	kClearScreen();
 }
-void kShowTotalRamSize( int iArgc, const char** pcArgv ){
+static void kShowTotalRamSize( int iArgc, const char** pcArgv ){
 	kPrintf("This machine has %dMB...\n",kGetTotalRAMSize());
 }
-void kStringToDecimalHexTest( int iArgc, const char** pcArgv ){
-	char pcBuffer[100];
+static void kStringToDecimalHexTest( int iArgc, const char** pcArgv ){
 	long lValue;
 	int i;
 	for(i = 1; i < iArgc; i++){
 		kPrintf("Param[%d] = '%s', ",i,pcArgv[i]);
 		if(kMemCmp(pcArgv[i],"0x",2) == 0 ){
-			lValue = kAToI((pcArgv[i])+2, 16);
+			kAToI(pcArgv[i]+2, 16, &lValue);
 			if(lValue==-1){
 				kPrintf("Not Supported Format...\n");
 			}
 			else{
-				kPrintf("Hex Value = %q\n", lValue);
+				kPrintf("Hex Value = 0x%q\n", lValue);
 			}
 		}
 		else{
-			lValue = kAToI(pcArgv[i], 10);
+			kAToI(pcArgv[i], 10,&lValue);
 			if(lValue==-1){
 				kPrintf("Not Supported Format...\n");
 			}
@@ -192,32 +197,32 @@ void kStringToDecimalHexTest( int iArgc, const char** pcArgv ){
 		}
 	}
 }
-void kShutdonw( int iArgc, const char** pcArgv ){
+static void kShutdonw( int iArgc, const char** pcArgv ){
 	kPrintf("System Shutdown Start...\n");
 	kPrintf("Press Any Key to Reboot PC...");
 	kGetCh();
 	kReboot();
 }
-void kSetTImer( int iArgc, const char** pcArgv ){
+static void kSetTImer( int iArgc, const char** pcArgv ){
 	WORD wCount;
 	BOOL bPeriodic;
 	if(iArgc != 3){
 		kPrintf("%s\n","Wrong Parmeter.. ex)settimer 10(ms) 1(periodic)");
 		return;
 	}
-	wCount= kAToI(pcArgv[1], 10);
-	bPeriodic = kAToI(pcArgv[2], 10);
+	kAToI(pcArgv[1], 10,&wCount);
+	kAToI(pcArgv[2], 10,&bPeriodic);
 	kPrintf("Time = %d ms, Periodic = %d Change Complete\n",wCount,bPeriodic);
 	kInitializePIT(MSTOCOUNT(wCount), bPeriodic);
 }
-void kWaitUsingPIT( int iArgc, const char** pcArgv ){
+static void kWaitUsingPIT( int iArgc, const char** pcArgv ){
 	long lValue;
 	int i;
 	if(iArgc != 2){
 		kPrintf("%s\n","Wrong Parmeter.. ex)wait 100(ms)");
 		return;
 	}
-	lValue = kAToI(pcArgv[1], 10);
+	kAToI(pcArgv[1], 10,lValue);
 	kPrintf("%d ms Sleep Start...\n",lValue);
 	kDisableInterrupt();
 	for(i=0;i<lValue/30;i++){
@@ -229,12 +234,12 @@ void kWaitUsingPIT( int iArgc, const char** pcArgv ){
 	kPrintf("%d ms Sleep Complete\n",lValue);
 	kInitializePIT(MSTOCOUNT(1), TRUE);
 }
-void kReadTimeStampCounter( int iArgc, const char** pcArgv ){
+static void kReadTimeStampCounter( int iArgc, const char** pcArgv ){
 	QWORD qwTSC;
 	qwTSC = kReadTSC();
 	kPrintf("Time Stamp Counter = %q\n",qwTSC);
 }
-void kMeasureProcessorSpeed( int iArgc, const char** pcArgv ){
+static void kMeasureProcessorSpeed( int iArgc, const char** pcArgv ){
 	int i;
 	QWORD qwLastTSC, qwTotalTSC =0;
 	kPrintf("Now Measuring.");
@@ -249,7 +254,7 @@ void kMeasureProcessorSpeed( int iArgc, const char** pcArgv ){
 	kEnableInterrupt();
 	kPrintf("\nCPU Speed = %d MHz\n",qwTotalTSC/10/1000/1000);
 }
-void kShowDateTime( int iArgc, const char** pcArgv ){
+static void kShowDateTime( int iArgc, const char** pcArgv ){
 	BYTE bSecond,bMinute,bHour;
 	BYTE bDayOfWeek,bDayOfMonth, bMonth;
 	WORD wYear;
@@ -314,28 +319,92 @@ void kTestTask2(void){
 		kSchedule();
 	}
 }
-void kCreateTestTask( int iArgc, const char** pcArgv ){
+static void kCreateTestTask( int iArgc, const char** pcArgv ){
 	int i;
+	int lValue;
 	if(iArgc != 3 ){
 		kPrintf("%s\n","Wrong Parmeter..");
 	}
-	switch(kAToI(pcArgv[1], 10)){
+	switch(kAToI(pcArgv[1], 10,&lValue)){
 	case 1:
-		for(i=0;i<kAToI(pcArgv[2], 10);i++){
-			if(kCreateTask(0, (QWORD)kTestTask1)==NULL)
+		kAToI(pcArgv[2], 10,&lValue);
+		for(i=0;i<lValue;i++){
+			if(kCreateTask(TASK_FLAGS_LOW, (QWORD)kTestTask1)==NULL)
 				break;
 		}
 		kPrintf("Task1 %d Created\n",i);
 		break;
 	case 2:
-		for(i=0;i<kAToI(pcArgv[2], 10);i++){
-			if(kCreateTask(0, (QWORD)kTestTask2)==NULL)
+		kAToI(pcArgv[2], 10,&lValue);
+		for(i=0;i<lValue;i++){
+			if(kCreateTask(TASK_FLAGS_LOW, (QWORD)kTestTask2)==NULL)
 				break;
 		}
 		kPrintf("Task2 %d Created\n",i);
 		break;
 	}
 }
+static void kChangeTaskPriority( int iArgc, const char** pcArgv){
+	QWORD qwTaskID;
+	BYTE bPriority;
+	if(iArgc != 3 ){
+		kPrintf("%s\n","Wrong Parmeter..");
+	}
+	kAToI(pcArgv[1]+2, 16,&qwTaskID);
+	kAToI(pcArgv[2], 10,&bPriority);
+	kPrintf("Change Task Prioriy ID [0x%q] Priority[%d] ",qwTaskID,bPriority);
+	if(kChangePriority(qwTaskID, bPriority)==TRUE){
+		kPrintf("Success\n");
+	}else{
+		kPrintf("Fail\n");
+	}
+}
+static void kShowTaskList( int iArgc, const char** pcArgv){
+	int i;
+	TCB* pstTCB;
+	int iCount = 1;
+	kPrintf("=============== Task Total Count [%d] ===================\n",kGetTaskCount());
+	for(i = 0; i<TASK_MAXCOUNT; i++){
+		pstTCB = kGetTCBInTCBPool(i);
+		if(((pstTCB->stLinkedList.Node_ID)>>32)!= 0){
+			if(iCount % 10 == 0){
+				kPrintStringXY(0, CONSOLE_HEIGHT-1, "Press and key to continue...('q' is exit) : ");
+				if(kGetCh()=='q'){
+					kPrintStringXY(0, CONSOLE_HEIGHT-1, "                                            ");
+					break;
+				}
+				kPrintStringXY(0, CONSOLE_HEIGHT-1, "                                            ");
+
+			}
+			kPrintf("[%d] Task ID[0x%Q], Priority[%d], Flags[0x%Q]\n",\
+					1+iCount++,pstTCB->stLinkedList.Node_ID,\
+					GETPRIORITY(pstTCB->qwFlags),pstTCB->qwFlags);
+		}
+	}
+}
+static void kKillTask( int iArgc, const char** pcArgv){
+	QWORD qwID;
+	if(iArgc != 2 ){
+			kPrintf("%s\n","Wrong Parmeter..");
+	}
+	if(kMemCmp((pcArgv[1]),"0x",2) == 0){
+		kAToI((pcArgv[1]) + 2 ,16,&qwID);
+	}
+	else{
+		kAToI(pcArgv[1], 10,&qwID);
+	}
+	kReadMemory(30, 0, &qwID);
+	kPrintf("Kill Task ID[0x%q] ",qwID);
+	if(kEndTask(qwID)==TRUE){
+		kPrintf("Success\n");
+	}else{
+		kPrintf("Fail\n");
+	}
+}
+static void kCPULoad( int iArgc, const char** pcArgv){
+	kPrintf("Proccesor Load : %d%\n", kGetProcessorLoad());
+}
+//================================================================================
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex){
 	int i, iResult, iLastCommandIndex;
 	int iLastCommandLength;

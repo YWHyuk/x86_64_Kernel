@@ -4,7 +4,7 @@ extern kReadMemory
 global kInPortByte,kOutPortByte,kLoadGDTR,kLoadTR,kLoadIDTR
 global kEnableInterrupt,kDisableInterrupt,kReadRFLAGS
 global kSoftInterrupt,kReadTSC
-global kContextSwitch;
+global kContextSwitch, kHlt;
 ; BYTE kInPortByte(WORD wPort);
 ;
 kInPortByte:
@@ -151,3 +151,7 @@ kContextSwitch:
 	mov		rsp, rsi
 	KLOADCONTEXT
 	iretq
+kHlt:
+	hlt
+	hlt
+	ret

@@ -95,6 +95,7 @@ BYTE kGetCh(void){
 				return stData.bASCIICode;
 			}
 		}
+		kSchedule();
 	}
 }
 void kPrintStringXY(int iX, int iY, const char* pcString){

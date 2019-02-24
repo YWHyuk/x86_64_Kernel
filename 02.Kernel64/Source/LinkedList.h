@@ -26,7 +26,7 @@ void InitializeLinkedList(LINKEDLIST* LinkedList);
 void InitializeLinkedListManger(LINKEDLISTMANAGER* LinkedListManager);
 void SetLinkedList(LINKEDLIST* LinkedList,LINKEDLIST* Next_List,LINKEDLIST* Prev_list);
 QWORD count(LINKEDLISTMANAGER* LinkedListManager);
-void* find(LINKEDLISTMANAGER* LinkedListManager, QWORD Node_ID);
+int find(LINKEDLISTMANAGER* LinkedListManager, QWORD Node_ID);
 void* front(LINKEDLISTMANAGER* LinkedListManager);
 void* back(LINKEDLISTMANAGER* LinkedListManager);
 void clear(LINKEDLISTMANAGER* LinkedListManager);

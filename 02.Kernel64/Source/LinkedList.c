@@ -26,21 +26,23 @@ void SetLinkedList(LINKEDLIST* LinkedList,LINKEDLIST* Next_List,LINKEDLIST* Prev
 QWORD count(LINKEDLISTMANAGER* LinkedListManager){
 	return LinkedListManager->Total_Node_Count;
 }
-void* find(LINKEDLISTMANAGER* LinkedListManager, QWORD Node_ID){
+int find(LINKEDLISTMANAGER* LinkedListManager, QWORD Node_ID){
 	LINKEDLIST* Iterator;
 	QWORD Check_value;
+	int	iIndex=0;
 	Check_value = count(LinkedListManager);
-	for(Iterator=(LINKEDLIST*)front(LinkedListManager);Iterator!=NULL;\
+	for(Iterator = (LINKEDLIST*)front(LinkedListManager); Iterator!=NULL;\
 	Iterator=Iterator->Next_LinkedList){
 		if(Iterator->Node_ID == Node_ID){
-			return Iterator;
+			return iIndex;
 		}
 		Check_value--;
+		iIndex++;
 	}
 	if(Check_value!=0UL){
 		Inconsistency_Found(LinkedListManager);
 	}
-	return NULL;
+	return -1;
 }
 void* front(LINKEDLISTMANAGER* LinkedListManager){
 	return LinkedListManager->Begin_LinkedList;

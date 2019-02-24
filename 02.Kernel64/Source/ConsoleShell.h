@@ -31,16 +31,21 @@ void kExecuteCommand(const char* pcCommandBuffer);
 void kInitializeParameter( PARAMETERLIST* pstList, const char* pcParameter);
 int kGetNextParameter( PARAMETERLIST* pstList, char* pcParameter);
 //실제 커맨드 함수
-void kHelp( int iArgc, const char** pcArgv );
-void kCls( int iArgc, const char** pcArgv );
-void kShowTotalRamSize( int iArgc, const char** pcArgv );
-void kStringToDecimalHexTest( int iArgc, const char** pcArgv );
-void kShutdonw( int iArgc, const char** pcArgv );
-void kSetTImer( int iArgc, const char** pcArgv );
-void kWaitUsingPIT( int iArgc, const char** pcArgv );
-void kReadTimeStampCounter( int iArgc, const char** pcArgv );
-void kMeasureProcessorSpeed( int iArgc, const char** pcArgv );
-void kShowDateTime( int iArgc, const char** pcArgv );
-void kCreateTestTask( int iArgc, const char** pcArgv);
+static void kHelp( int iArgc, const char** pcArgv );
+static void kCls( int iArgc, const char** pcArgv );
+static void kShowTotalRamSize( int iArgc, const char** pcArgv );
+static void kStringToDecimalHexTest( int iArgc, const char** pcArgv );
+static void kShutdonw( int iArgc, const char** pcArgv );
+static void kSetTImer( int iArgc, const char** pcArgv );
+static void kWaitUsingPIT( int iArgc, const char** pcArgv );
+static void kReadTimeStampCounter( int iArgc, const char** pcArgv );
+static void kMeasureProcessorSpeed( int iArgc, const char** pcArgv );
+static void kShowDateTime( int iArgc, const char** pcArgv );
+static void kCreateTestTask( int iArgc, const char** pcArgv);
+static void kChangeTaskPriority( int iArgc, const char** pcArgv);
+static void kShowTaskList( int iArgc, const char** pcArgv);
+static void kKillTask( int iArgc, const char** pcArgv);
+static void kCPULoad( int iArgc, const char** pcArgv);
+
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex);
 #endif /* __02_KERNEL64_SOURCE_CONSOLESHELL_H_ */
