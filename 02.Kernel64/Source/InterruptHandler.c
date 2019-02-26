@@ -12,11 +12,11 @@
 #include "Descriptor.h"
 
 void kCommonExceptionHandler(int iVectorNumber, QWORD qwErrorCode){
-	QWORD* i=0x800000UL;
-	int j;
-	for(j=0;j<24;j++){
+	//QWORD* i=0x800000UL;
+	//int j;
+	//for(j=0;j<24;j++){
 		//kPrintf("%q: %q\t",i-j,*(i-j));
-	}
+	//}
 	char vcBuffer[3]={0,};
 	vcBuffer[0]='0' + iVectorNumber / 10;
 	vcBuffer[1]='0' + iVectorNumber % 10;

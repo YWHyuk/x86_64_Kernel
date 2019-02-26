@@ -5,6 +5,7 @@ global kInPortByte,kOutPortByte,kLoadGDTR,kLoadTR,kLoadIDTR
 global kEnableInterrupt,kDisableInterrupt,kReadRFLAGS
 global kSoftInterrupt,kReadTSC
 global kContextSwitch, kHlt;
+global kTestAndSet;
 ; BYTE kInPortByte(WORD wPort);
 ;
 kInPortByte:
@@ -154,4 +155,28 @@ kContextSwitch:
 kHlt:
 	hlt
 	hlt
+	ret
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;BOOL kTestAndSet( volatile BYTE* pbDestination, BYTE bCompare, BYTE bSource)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+kTestAndSet:
+;pbDestination에 저장된 값을 bCompare과 비교 같다면, bSource의 값으로 바꾸고 zf =1
+;아니라면 값을 그대로 zf=0 이정도만 사용하자.
+;TEMP ← DEST
+;IF accumulator = TEMP
+;    THEN
+;        ZF ← 1;
+;        DEST ← SRC;
+;    ELSE
+;        ZF ← 0;
+;        accumulator ← TEMP;
+;        DEST ← TEMP;
+;FI;
+	mov		rax, rsi
+	lock cmpxchg byte[rdi], dl
+	je	.SUCCESS
+	mov 	rax, 0; pbDestination의 값은 변동없다.
+	ret
+.SUCCESS:
+	mov		rax, 1; pbDestination의 값은 bSource 값으로 변화
 	ret

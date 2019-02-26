@@ -6,6 +6,7 @@
  */
 #include "Task.h"
 #include "Descriptor.h"
+#include "Synchronization.h"
 
 static TCBPOOLMANAGER gs_stTCBPoolManager;
 static SCHEDULER gs_stScheduler;
@@ -27,7 +28,7 @@ void kInitializeTCBPool( void ){
 	//STACK POOL 초기화? 할 필요있나?
 }
 //태스크 관련 함수-할당 해제 *사실상 qwID만 할당한다고 보는게 더 정확*
-TCB* kAllocTCB( void ){
+static TCB* kAllocTCB( void ){
 	TCB* pstTCB;
 	if( gs_stTCBPoolManager.iTaskCount == gs_stTCBPoolManager.iMaxCount){
 		goto ALLOCTCB_ERROR;
@@ -48,7 +49,7 @@ ALLOCTCB_ERROR:
 	kPrintf("TCB Pool is full...\n");
 	return NULL;
 }
-void kFreeTCB( QWORD qwID ){
+static void kFreeTCB( QWORD qwID ){
 	int i;
 	i = GETTCBOFFSET(qwID);
 	kMemCpy(&(gs_stTCBPoolManager.pstTCBStartAddress[i].stContext), 0, sizeof(CONTEXT));
@@ -60,24 +61,34 @@ void kFreeTCB( QWORD qwID ){
 TCB* kCreateTask( QWORD qwFlags, QWORD qwEntryPointAddress){
 	TCB* pstNewTCB;
 	void* pvStackAddress;
+	BOOL bPreviousFlag;
+
+	bPreviousFlag= kLockForSystemData();
 	pstNewTCB = kAllocTCB();
 	if(pstNewTCB == NULL){
+		kUnLockForSystemData(bPreviousFlag);
 		return NULL;
 	}
+	kUnLockForSystemData(bPreviousFlag);
 	pvStackAddress = (void*)(TASK_STACKPOOLADDRESS + \
 			(GETTCBOFFSET(pstNewTCB->stLinkedList.Node_ID) * TASK_STACKSIZE));
 	kSetUpTask(pstNewTCB, qwFlags, qwEntryPointAddress, pvStackAddress, TASK_STACKSIZE);
+
+	bPreviousFlag= kLockForSystemData();
 	if(kAddTaskToReadyList(pstNewTCB)==FALSE){//TCB와 링크드 리스트는 한몸이므로, 둘중 하나만 걸릴 수 없다.
 		kFreeTCB(pstNewTCB->stLinkedList.Node_ID);			//여기로 들어가면 이상한 일이 발생한 것..
+
+		kUnLockForSystemData(bPreviousFlag);
 		kPrintf("kCreateTask() Failed...\n");
 		return NULL;
 	}
+	kUnLockForSystemData(bPreviousFlag);
 	//kPrintf("kCreatTask %q\n",pstNewTCB->stLinkedList.qwID);
 	//kPrintf("head:%q tail%q\n",gs_stScheduler.stReadyList.pstHead->pvNext,gs_stScheduler.stReadyList.pstTail->pvNext);
 	//kPrintLinkedList(&(gs_stScheduler.stReadyList));
 	return pstNewTCB;
 }
-void kSetUpTask(TCB* pstTCB, QWORD qwFlags,QWORD qwEntryPointAddress ,\
+static void kSetUpTask(TCB* pstTCB, QWORD qwFlags,QWORD qwEntryPointAddress ,\
 		void* pvStackAddress, QWORD qwStackSize){
 	kMemSet(&(pstTCB->stContext), 0, sizeof(CONTEXT));
 	//pstTCB->stLinkedList
@@ -105,11 +116,12 @@ void kSetUpTask(TCB* pstTCB, QWORD qwFlags,QWORD qwEntryPointAddress ,\
 //태스크 관련 함수-우선순위 변경
 BOOL kChangePriority(QWORD qwTaskID, BYTE bPriority){
 	TCB* pstTargetTCB;
+	BOOL bPreviousFlag;
 	if(bPriority > TASK_MAXREADYLISTCOUNT){
 		kPrintf("kChangePriority() passed wrong priority value...\n");
 		return FALSE;
 	}
-
+	bPreviousFlag = kLockForSystemData();
 	pstTargetTCB = gs_stScheduler.pstRunningTCB;
 	if(pstTargetTCB->stLinkedList.Node_ID == qwTaskID){
 		SETPRIORITY(pstTargetTCB->qwFlags, bPriority);
@@ -123,20 +135,24 @@ BOOL kChangePriority(QWORD qwTaskID, BYTE bPriority){
 			kAddTaskToReadyList(pstTargetTCB);
 		}
 	}
+	kUnLockForSystemData(bPreviousFlag);
 	return TRUE;
 
 }
 //태스크 관련 함수-태스크 종료
 BOOL kEndTask(QWORD qwTaskID){
 	TCB* pstTargetTCB = gs_stScheduler.pstRunningTCB;
+	BOOL bPreviousFlag;
 	//스스로 종료하는 입장?
+	bPreviousFlag = kLockForSystemData();
 	if(qwTaskID == pstTargetTCB->stLinkedList.Node_ID){
 		//플래그 세우고
 		pstTargetTCB->qwFlags |= TASK_FLAGS_ENDTASK;
 		SETPRIORITY(pstTargetTCB->qwFlags , TASK_FLAGS_WAIT);
 		//스케줄링
+		kUnLockForSystemData(bPreviousFlag);
 		kSchedule();
-		kPrintf("This message should not appear...\n");
+		kPrintf("kEndTaks() This message should not appear...\n");
 		return TRUE;
 	}else{
 		//해당 태스크 플래그 세우고
@@ -147,16 +163,18 @@ BOOL kEndTask(QWORD qwTaskID){
 				pstTargetTCB->qwFlags |= TASK_FLAGS_ENDTASK;
 				SETPRIORITY(pstTargetTCB->qwFlags, TASK_FLAGS_WAIT);
 			}
+			kUnLockForSystemData(bPreviousFlag);
 			return FALSE;
 		}
 		pstTargetTCB->qwFlags |= TASK_FLAGS_ENDTASK;
 		SETPRIORITY(pstTargetTCB->qwFlags, TASK_FLAGS_WAIT);
 		push_back(&(gs_stScheduler.stWaitList), pstTargetTCB);
+		kUnLockForSystemData(bPreviousFlag);
 		return TRUE;
 	}
 }
 void kExitTask( void ){
-	kEndTask(gs_stScheduler.pstRunningTCB->stLinkedList.Node_ID);
+	kEndTask(kGetRunningTCB()->stLinkedList.Node_ID);
 }
 //태스크 관련 함수-nodeId
 TCB* kGetTCBInTCBPool(int iOffset){
@@ -182,13 +200,21 @@ void kInitializeScheduler( void ){
 }
 //스케줄러 관련 함수-TCB* pstCurrentTCB 접근 함수;
 void kSetRunningTCB( TCB* pstTask){
+	BOOL bPreviousFlag;
+	bPreviousFlag = kLockForSystemData();
 	gs_stScheduler.pstRunningTCB = pstTask;
+	kUnLockForSystemData(bPreviousFlag);
 }
 TCB* kGetRunningTCB( void ){
-	return gs_stScheduler.pstRunningTCB;
+	TCB* pstTCB;
+	BOOL bPreviousFlag;
+	bPreviousFlag = kLockForSystemData();
+	pstTCB =gs_stScheduler.pstRunningTCB;
+	kUnLockForSystemData(bPreviousFlag);
+	return pstTCB;
 }
 //스케줄러 관련 함수-LIST stReadyList 접근 함수;
-TCB* kGetNextTaskToRun( void ){
+static TCB* kGetNextTaskToRun( void ){
 	LINKEDLIST* pstLinkedList = NULL;
 	LINKEDLISTMANAGER* pstLinkedListManager;
 	int i;
@@ -218,7 +244,7 @@ TCB* kGetNextTaskToRun( void ){
 	//kPrintLinkedList(&(gs_stScheduler.stReadyList));
 	return (TCB*)pstLinkedList;
 }
-BOOL kAddTaskToReadyList( TCB* pstTask){
+static BOOL kAddTaskToReadyList( TCB* pstTask){
 	BYTE bPriority;
 	bPriority = GETPRIORITY(pstTask->qwFlags);
 	if(bPriority >= TASK_MAXREADYLISTCOUNT){
@@ -226,7 +252,7 @@ BOOL kAddTaskToReadyList( TCB* pstTask){
 	}
 	return push_back( &(gs_stScheduler.stReadyList[bPriority]), pstTask );
 }
-TCB* kRemoveTaskReadyList( QWORD qwID ){
+static TCB* kRemoveTaskReadyList( QWORD qwID ){
 	BYTE bPriority;
 	QWORD qwTCBIndex;
 	TCB* pstTargetTCB;
@@ -251,15 +277,22 @@ TCB* kRemoveTaskReadyList( QWORD qwID ){
 int kGetReadyTaskCount( void ){
 	int iCount=0;
 	int i;
+	BOOL bPreviousFlag;
+	bPreviousFlag = kLockForSystemData();
 	for(i=0;i<TASK_MAXREADYLISTCOUNT;i++){
 		iCount += count(&(gs_stScheduler.stReadyList[i]));
 	}
+	kUnLockForSystemData(bPreviousFlag);
 	return iCount;
 }
 int kGetTaskCount( void ){
 	int iCount;
+	BOOL bPreviousFlag;
 	iCount = kGetReadyTaskCount();
+	bPreviousFlag = kLockForSystemData();
 	iCount += count(&(gs_stScheduler.stWaitList)) + 1;
+	kUnLockForSystemData(bPreviousFlag);
+
 	return iCount;
 }
 //스케줄러 관련 함수-iProcessorTime 겁근 함수
@@ -283,11 +316,11 @@ void kSchedule(void){
 		return;
 	}
 
-	bPreviousFlag = kSetInterruptFlag(FALSE);
+	bPreviousFlag = kLockForSystemData();
 	pstNextTask = kGetNextTaskToRun();
 	//kPrintf("%q: %q\n",pstNextTask,*pstNextTask);
 	if(pstNextTask == NULL){
-		kSetInterruptFlag(bPreviousFlag);
+		kUnLockForSystemData(bPreviousFlag);
 		return;
 	}
 	pstRunningTask = gs_stScheduler.pstRunningTCB;
@@ -301,9 +334,9 @@ void kSchedule(void){
 	gs_stScheduler.iProcessorTime = TASK_PROCESSORTIME;
 	//종료를 기다리는 태스크 처리 분기문
 	if((pstRunningTask->qwFlags & TASK_FLAGS_ENDTASK)==TASK_FLAGS_ENDTASK){
-		if(kAddTaskToReadyList(pstRunningTask)==FALSE){
+		if(push_back(&(gs_stScheduler.stWaitList), pstRunningTask)==FALSE){
+			kUnLockForSystemData(bPreviousFlag);
 			kPrintf("kAddTaskToReadyList() Failed... \n");
-			kSetInterruptFlag(bPreviousFlag);
 			return;
 		}
 		//컨택스트 스위칭 핵심 부분
@@ -315,13 +348,13 @@ void kSchedule(void){
 		kContextSwitch(NULL, &(pstNextTask->stContext));
 	}else{
 		if(kAddTaskToReadyList(pstRunningTask)==FALSE){
+			kUnLockForSystemData(bPreviousFlag);
 			kPrintf("kAddTaskToReadyList() Failed... \n");
-			kSetInterruptFlag(bPreviousFlag);
 			return;
 		}
 		kContextSwitch(&(pstRunningTask->stContext), &(pstNextTask->stContext));
 	}
-	kSetInterruptFlag(bPreviousFlag);
+	kUnLockForSystemData(bPreviousFlag);
 }
 BOOL kScheduleInterrupt( void ){
 	/*
@@ -331,8 +364,11 @@ BOOL kScheduleInterrupt( void ){
 	 */
 	TCB* pstRunningTask, * pstNextTask;
 	char* pstSavedContext;
+	BOOL bPreviousFlag;
+	bPreviousFlag = kLockForSystemData();
 	pstNextTask = kGetNextTaskToRun();
 	if(pstNextTask == NULL){
+		kUnLockForSystemData(bPreviousFlag);
 		return FALSE;
 	}
 	pstSavedContext = (char*)IST_STARTADDRESS + IST_SIZE - sizeof(CONTEXT);
@@ -352,6 +388,7 @@ BOOL kScheduleInterrupt( void ){
 		kMemCpy(&(pstRunningTask->stContext),(void*)pstSavedContext,sizeof(CONTEXT));
 		if(kAddTaskToReadyList(pstRunningTask)==FALSE){
 			kPrintf("kAddTaskToReadyList() Failed... \n");
+			kUnLockForSystemData(bPreviousFlag);
 			return FALSE;
 		}
 	}
@@ -365,9 +402,10 @@ BOOL kScheduleInterrupt( void ){
 	//kMemCpy((void*)pstSavedContext,&(pstRunningTask->stContext),sizeof(CONTEXT));
 	//((CONTEXT*)pstSavedContext)->vqRegister[TASK_RIPOFFSET]=\
 			pstNextTask->stContext.vqRegister[TASK_RIPOFFSET];
+	gs_stScheduler.iProcessorTime = TASK_PROCESSORTIME;
+	kUnLockForSystemData(bPreviousFlag);
 	kMemCpy((void*)pstSavedContext,&(pstNextTask->stContext), sizeof(CONTEXT));
 	//kReadContext(pstSavedContext);
-	gs_stScheduler.iProcessorTime = TASK_PROCESSORTIME;
 	return TRUE;
 
 }
@@ -386,6 +424,8 @@ void kIdleTask( void ){
 	TCB* pstTask;
 	QWORD qwLastMeasureTickCount ,qwLastSpendTickInIdleTask;
 	QWORD qwCurrentMeasureTickCount ,qwCurrentSpendTickInIdleTask;
+	QWORD qwTaskID;
+	BOOL bPreviousFlag;
 	qwLastMeasureTickCount = kGetTickCount();
 	qwLastSpendTickInIdleTask = gs_stScheduler.qwSpendProcessorTimeInIdleTask;
 	while(1){
@@ -407,13 +447,17 @@ void kIdleTask( void ){
 
 		if(count(&(gs_stScheduler.stWaitList)) > 0){
 			while(1){
+				bPreviousFlag = kLockForSystemData();
 				pstTask = pop_front(&(gs_stScheduler.stWaitList));
 				if(pstTask == NULL){
+					kUnLockForSystemData(bPreviousFlag);
 					break;
 				}
 				kPrintf("IDLE: Task ID[0x%q] is completely ended.\n",\
 						pstTask->stLinkedList.Node_ID);
-				kFreeTCB(pstTask->stLinkedList.Node_ID);
+				qwTaskID = pstTask->stLinkedList.Node_ID;
+				kFreeTCB(qwTaskID);
+				kUnLockForSystemData(bPreviousFlag);
 			}
 		}
 		kSchedule();
@@ -441,4 +485,3 @@ void kReadContext(CONTEXT* pstContext){
 	}
 	kPrintf("\n");
 }
-

@@ -12,6 +12,8 @@
 #include "AssemblyUtility.h"
 #include "Task.h"
 #include "ISR.h"
+#include "Synchronization.h"
+
 SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"help", "Show Help",kHelp},
 		{"cls", "Clear the Screen", kCls},
@@ -27,8 +29,9 @@ SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"changepriority","Change Task Priority, ex)changepriority 1(ID) 2(Priority)",\
 				kChangeTaskPriority},
 		{"tasklist","Show Task List",kShowTaskList},
-		{"killtask","End task",kKillTask},
-		{"cpuload","Show Processor Load", kCPULoad}
+		{"killtask","End task, ex)killtask 1(ID) or 0xffffffff(All task)",kKillTask},
+		{"cpuload","Show Processor Load", kCPULoad},
+		{"testmutex", "Test Mutex Function",kTestMutex}
 };
 void kStartConsoleShell(void){
 	char vcCommandBuffer[CONSOLESHELL_MAXCOMMANDBUFFERCOUNT];
@@ -377,13 +380,15 @@ static void kShowTaskList( int iArgc, const char** pcArgv){
 
 			}
 			kPrintf("[%d] Task ID[0x%Q], Priority[%d], Flags[0x%Q]\n",\
-					1+iCount++,pstTCB->stLinkedList.Node_ID,\
+					iCount++,pstTCB->stLinkedList.Node_ID,\
 					GETPRIORITY(pstTCB->qwFlags),pstTCB->qwFlags);
 		}
 	}
 }
 static void kKillTask( int iArgc, const char** pcArgv){
 	QWORD qwID;
+	TCB* pstTCB;
+	int i;
 	if(iArgc != 2 ){
 			kPrintf("%s\n","Wrong Parmeter..");
 	}
@@ -393,13 +398,28 @@ static void kKillTask( int iArgc, const char** pcArgv){
 	else{
 		kAToI(pcArgv[1], 10,&qwID);
 	}
-	kReadMemory(30, 0, &qwID);
-	kPrintf("Kill Task ID[0x%q] ",qwID);
-	if(kEndTask(qwID)==TRUE){
-		kPrintf("Success\n");
+	if(qwID!=0xFFFFFFFF){
+		kPrintf("Kill Task ID[0x%q] ",qwID);
+		if(kEndTask(qwID)==TRUE){
+			kPrintf("Success\n");
+		}else{
+			kPrintf("Fail\n");
+		}
 	}else{
-		kPrintf("Fail\n");
+		for(i = 2; i < TASK_MAXCOUNT; i++ ){
+			pstTCB = kGetTCBInTCBPool(i);
+			qwID = pstTCB->stLinkedList.Node_ID;
+			if((qwID>>32)!=0){
+				kPrintf("Kill Task ID[0x%q] ",qwID);
+				if(kEndTask(qwID)==TRUE){
+					kPrintf("Success\n");
+				}else{
+					kPrintf("Fail\n");
+				}
+			}
+		}
 	}
+
 }
 static void kCPULoad( int iArgc, const char** pcArgv){
 	kPrintf("Proccesor Load : %d\n", kGetProcessorLoad());
@@ -438,4 +458,40 @@ void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex){
 		kPrintf("%s",&(vcCommandBuffer[*iCommandBufferIndex]));
 		(*iCommandBufferIndex) += idistance;
 	}
+}
+static MUTEX gs_stMutex;
+static volatile QWORD gs_qwAdder;
+static void kPrintNumberTask( int iArgc, const char** pcArgv )
+{
+	int i,j;
+	QWORD qwTickCount;
+	qwTickCount = kGetTickCount();
+	while((kGetTickCount() - qwTickCount)<50){
+		kSchedule();
+	}
+	for( i = 0; i < 5; i++ ){
+		kLock(&(gs_stMutex));
+		kPrintf("Task ID [0x%Q] Value[%d]\n",kGetRunningTCB()->stLinkedList.Node_ID,\
+				gs_qwAdder);
+		gs_qwAdder += 1;
+		kUnlock(&(gs_stMutex));
+		for(j=0;j<30000;j++);
+	}
+	qwTickCount = kGetTickCount();
+	while((kGetTickCount() - qwTickCount)<1000){
+		kSchedule();
+	}
+	kExitTask();
+}
+static void kTestMutex( int iArgc, const char** pcArgv )
+{
+	int i;
+
+	gs_qwAdder = 1;
+	kInitializeMutex(&gs_stMutex);
+	for( i = 0; i < 3; i++ ){
+		kCreateTask(TASK_FLAGS_LOW, (QWORD)kPrintNumberTask);
+	}
+	kPrintf("Wait Until %d Task End...\n",i);
+	kGetCh();
 }

@@ -103,11 +103,11 @@ typedef struct kSchedulerStruct{
 //태스크 관련 함수-초기화
 void kInitializeTCBPool( void );
 //태스크 관련 함수-할당 해제
-TCB* kAllocTCB( void );
-void kFreeTCB( QWORD qwID );
+static TCB* kAllocTCB( void );
+static void kFreeTCB( QWORD qwID );
 //태스크 관련 함수-생성
 TCB* kCreateTask( QWORD qwFlags, QWORD qwEntryPointAddress);
-void kSetUpTask(TCB* pstTCB, QWORD qwFlags,QWORD qwEntryPointAddress ,\
+static void kSetUpTask(TCB* pstTCB, QWORD qwFlags,QWORD qwEntryPointAddress ,\
 		void* pvStackAddress, QWORD qwStackSize);
 //태스크 관련 함수-우선순위 변경
 BOOL kChangePriority(QWORD qwTaskID, BYTE bPriority);
@@ -122,9 +122,9 @@ void kInitializeScheduler( void );
 void kSetRunningTCB( TCB* pstTask);
 TCB* kGetRunningTCB( void );
 //스케줄러 관련 함수-LIST* stReadyList 접근 함수;
-TCB* kGetNextTaskToRun( void );
-BOOL kAddTaskToReadyList( TCB* pstTask);
-TCB* kRemoveTaskReadyList( QWORD qwID );
+static TCB* kGetNextTaskToRun( void );
+static BOOL kAddTaskToReadyList( TCB* pstTask);
+static TCB* kRemoveTaskReadyList( QWORD qwID );
 int kGetReadyTaskCount( void );
 int kGetTaskCount( void );
 //스케줄러 관련 함수-iProcessorTime 겁근 함수

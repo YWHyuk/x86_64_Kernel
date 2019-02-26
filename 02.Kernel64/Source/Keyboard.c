@@ -2,6 +2,7 @@
 #include "AssemblyUtility.h"
 #include "Keyboard.h"
 #include "Queue.h"
+#include "Synchronization.h"
 BOOL kIsOutputBufferFull(void){
 	if(kInPortByte(0x64)&0x01){
 		return TRUE;
@@ -429,9 +430,9 @@ BOOL kConvertScanCodeAndPutQueue(BYTE bScanCode){
 	BOOL bPreviousInterrupt;
 	stData.bScanCode = bScanCode;
 	if(kConvertScanCodeToASCIICode(bScanCode, &(stData.bASCIICode), &(stData.bFlags))==TRUE){
-		bPreviousInterrupt= kSetInterruptFlag(FALSE);// interrupt 贸府
+		bPreviousInterrupt= kLockForSystemData();// interrupt 贸府
 		bResult = kPutQueue(&gs_stKeyQueue, &stData);
-		kSetInterruptFlag(bPreviousInterrupt);	// interrupt 贸府
+		kUnLockForSystemData(bPreviousInterrupt);	// interrupt 贸府
 	}
 	return bResult;
 }
@@ -440,8 +441,8 @@ BOOL kGetKeyFromKeyQueue(KEYDATA* pstData){
 	BOOL bPreviousInterrupt;
 	if(kIsQueueEmpty(&gs_stKeyQueue)==TRUE)
 		return FALSE;
-	bPreviousInterrupt= kSetInterruptFlag(FALSE);// interrupt 贸府
+	bPreviousInterrupt= kLockForSystemData();// interrupt 贸府
 	bResult = kGetQueue(&gs_stKeyQueue, pstData);
-	kSetInterruptFlag(bPreviousInterrupt);// interrupt 贸府
+	kUnLockForSystemData(bPreviousInterrupt);// interrupt 贸府
 	return bResult;
 }

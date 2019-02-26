@@ -47,5 +47,7 @@ static void kShowTaskList( int iArgc, const char** pcArgv);
 static void kKillTask( int iArgc, const char** pcArgv);
 static void kCPULoad( int iArgc, const char** pcArgv);
 
+static void kPrintNumberTask( int iArgc, const char** pcArgv );
+static void kTestMutex( int iArgc, const char** pcArgv );
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex);
 #endif /* __02_KERNEL64_SOURCE_CONSOLESHELL_H_ */
