@@ -56,22 +56,51 @@
 #define TASK_FLAGS_WAIT				0xFF
 //태스크의 플래그
 #define TASK_FLAGS_ENDTASK			0x8000000000000000
+#define TASK_FLAGS_SYSTEM			0X4000000000000000
+#define TASK_FLAGS_PROCESS			0X2000000000000000
+#define TASK_FLAGS_THREAD			0X1000000000000000
 #define TASK_FLAGS_IDLE				0x0800000000000000
 //플래그 필드에서 우선순위를 추출하고 변경하는 매크로
 #define GETPRIORITY(x)				((x) & 0xFF)
 #define SETPRIORITY(x, priority)	((x) = ((x) & 0xFFFFFFFFFFFFFF00 ) | (priority))
 #define GETTCBOFFSET(x)				((x)&0xFFFFFFFF)
+//TCB에서 멤버의 오프셋을 구하는 매크로 함수
+#define GETTCBFROMTHREADLINK( x )		( TCB* )( ( QWORD )( x ) - offsetof( TCB , stThreadLinkedList ))
 #pragma pack( push, 1 )
 typedef struct kContextStruct{
 	QWORD vqRegister[TASK_REGISTERCOUNT];
 }CONTEXT;
 
 typedef struct kTaskControlBlockStruct{
+	/*
+	 *     <TASK CONTROL BLOCK>
+	 *  ┌─────────────────────────────────────────────────────
+	 *  | *TASK LINKED LIST-(TASK NODE ID,NEXT NODE...ETC)	  |
+	 *  | 	TASK FLAG(TYPE OF TASK)							  |
+	 *  | 	MEMORY INFORMATION(페이징 관련?)					  |
+	 *  | 	<THREAD AREA>									  |
+	 *  |┌────────────────────────────────────────────────── ||
+	 *  ||*THREAD ID										 ||
+	 *  ||*THREAD LIST										 ||
+	 *  ||	PARENT ID;										 ||
+	 *  ||	CONTEXT											 ||
+	 *	||	STACK INFORMATION								 ||
+	 *  |└───────────────────────────────────────────────────||
+	 *  └─────────────────────────────────────────────────────|
+	 *
+	 */
+	//TASK AREA
 	LINKEDLIST stLinkedList; // 이 구조체 내에 리스트가 담기는 구나
-	CONTEXT stContext;
-
 	QWORD qwFlags;
+	void* pvMemoryAddress;
+	QWORD qwMemorySize;
 
+	//THREAD AREA
+	LINKEDLIST stThreadLinkedList;
+	LINKEDLISTMANAGER stChildThreadList;
+
+	QWORD qwParentTaskID;
+	CONTEXT stContext;
 	void* pvStackAddress;
 	QWORD qwStackSize;
 
@@ -106,7 +135,7 @@ void kInitializeTCBPool( void );
 static TCB* kAllocTCB( void );
 static void kFreeTCB( QWORD qwID );
 //태스크 관련 함수-생성
-TCB* kCreateTask( QWORD qwFlags, QWORD qwEntryPointAddress);
+TCB* kCreateTask( QWORD qwFlags, void* pvMemoryAddress,QWORD qwMemorySize, QWORD qwEntryPointAddress);
 static void kSetUpTask(TCB* pstTCB, QWORD qwFlags,QWORD qwEntryPointAddress ,\
 		void* pvStackAddress, QWORD qwStackSize);
 //태스크 관련 함수-우선순위 변경
@@ -116,6 +145,8 @@ BOOL kEndTask(QWORD qwTaskID);
 void kExitTask( void );
 //태스크 관련 함수-nodeId
 TCB* kGetTCBInTCBPool(int iOffset);
+//쓰레드 관련 함수
+TCB* kGetProcessByThread(TCB* pstThread);
 //스케줄러 관련 함수-초기화
 void kInitializeScheduler( void );
 //스케줄러 관련 함수-TCB* pstCurrentTCB 접근 함수;

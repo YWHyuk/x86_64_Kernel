@@ -42,6 +42,7 @@ int find(LINKEDLISTMANAGER* LinkedListManager, QWORD Node_ID){
 	if(Check_value!=0UL){
 		Inconsistency_Found(LinkedListManager);
 	}
+	Inconsistency_Found(LinkedListManager);
 	return -1;
 }
 void* front(LINKEDLISTMANAGER* LinkedListManager){

@@ -46,8 +46,14 @@ static void kChangeTaskPriority( int iArgc, const char** pcArgv);
 static void kShowTaskList( int iArgc, const char** pcArgv);
 static void kKillTask( int iArgc, const char** pcArgv);
 static void kCPULoad( int iArgc, const char** pcArgv);
-
+static void kCreateThreadTask(void);
+static void kTestThread(int iArgc, const char** pcArgv);
 static void kPrintNumberTask( int iArgc, const char** pcArgv );
 static void kTestMutex( int iArgc, const char** pcArgv );
+static void kShowMatrix( int iArgc, const char** pcArgv );
+
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex);
+QWORD kRandom( void );
+static void kDropCharactorThread(void);
+static void kMatrixProcess(void);
 #endif /* __02_KERNEL64_SOURCE_CONSOLESHELL_H_ */

@@ -58,35 +58,67 @@ static void kFreeTCB( QWORD qwID ){
 	gs_stTCBPoolManager.iTaskCount--;
 }
 //태스크 관련 함수-생성
-TCB* kCreateTask( QWORD qwFlags, QWORD qwEntryPointAddress){
+TCB* kCreateTask( QWORD qwFlags, void* pvMemoryAddress,QWORD qwMemorySize, QWORD qwEntryPointAddress){
+	TCB* pstProcessTCB;
 	TCB* pstNewTCB;
 	void* pvStackAddress;
 	BOOL bPreviousFlag;
-
+	//Critical section start-TCB_NODE_ID
 	bPreviousFlag= kLockForSystemData();
+
 	pstNewTCB = kAllocTCB();
-	if(pstNewTCB == NULL){
-		kUnLockForSystemData(bPreviousFlag);
-		return NULL;
+	if(pstNewTCB == NULL)
+		goto KALLOCTCBERROR;
+
+	//태스크 영역의 메모리 정보 기입, 부모 프로세스 ID 기입
+	pstProcessTCB = kGetProcessByThread(kGetRunningTCB());
+	if(pstProcessTCB == NULL)
+		goto KGETPROCESSBYTHREADERROR;
+
+	if(qwFlags & TASK_FLAGS_THREAD){
+		//태스크 영역의 쓰레드 생성 부분 처리
+		pstNewTCB->qwParentTaskID = pstProcessTCB->stLinkedList.Node_ID;
+		pstNewTCB->pvMemoryAddress = pstProcessTCB->pvMemoryAddress;
+		pstNewTCB->qwMemorySize = pstProcessTCB->qwMemorySize;
+		push_back(&(pstProcessTCB->stChildThreadList), &(pstNewTCB->stThreadLinkedList));
+	}else{
+		//태스크 영역의 프로세스 생성 부분 처리
+		pstNewTCB->qwParentTaskID = pstNewTCB->stLinkedList.Node_ID;
+		pstNewTCB->pvMemoryAddress = pvMemoryAddress;
+		pstNewTCB->qwMemorySize = qwMemorySize;
 	}
+	pstNewTCB->stThreadLinkedList.Node_ID = pstNewTCB->stLinkedList.Node_ID;
 	kUnLockForSystemData(bPreviousFlag);
+	//Critical section end-TCB_NODE_ID
+
 	pvStackAddress = (void*)(TASK_STACKPOOLADDRESS + \
 			(GETTCBOFFSET(pstNewTCB->stLinkedList.Node_ID) * TASK_STACKSIZE));
 	kSetUpTask(pstNewTCB, qwFlags, qwEntryPointAddress, pvStackAddress, TASK_STACKSIZE);
 
+	InitializeLinkedListManger(&(pstNewTCB->stChildThreadList));
+	//Critical section start-Writing TCB to Scheduler's Task List
 	bPreviousFlag= kLockForSystemData();
-	if(kAddTaskToReadyList(pstNewTCB)==FALSE){//TCB와 링크드 리스트는 한몸이므로, 둘중 하나만 걸릴 수 없다.
-		kFreeTCB(pstNewTCB->stLinkedList.Node_ID);			//여기로 들어가면 이상한 일이 발생한 것..
+	if(kAddTaskToReadyList(pstNewTCB)==FALSE)//TCB와 링크드 리스트는 한몸이므로, 둘중 하나만 걸릴 수 없다.
+		goto KADDTASKTOREADYLISTERROR;			//여기로 들어가면 이상한 일이 발생한 것..
 
-		kUnLockForSystemData(bPreviousFlag);
-		kPrintf("kCreateTask() Failed...\n");
-		return NULL;
-	}
 	kUnLockForSystemData(bPreviousFlag);
-	//kPrintf("kCreatTask %q\n",pstNewTCB->stLinkedList.qwID);
-	//kPrintf("head:%q tail%q\n",gs_stScheduler.stReadyList.pstHead->pvNext,gs_stScheduler.stReadyList.pstTail->pvNext);
-	//kPrintLinkedList(&(gs_stScheduler.stReadyList));
+	//Critical section end-Writing TCB to Scheduler's Task List
 	return pstNewTCB;
+
+//ERROR HANDLING--------------------------------------------------------------------------
+KGETPROCESSBYTHREADERROR:
+	kPrintf("kGetProcessByThread() Failed...\n");
+	goto KFREETCB;
+KADDTASKTOREADYLISTERROR:
+	kPrintf("kCreateTask() Failed...\n");
+	goto KFREETCB;
+KALLOCTCBERROR:
+	goto KCOMMONERROR;
+KFREETCB:
+	kFreeTCB(pstNewTCB->stLinkedList.Node_ID);
+KCOMMONERROR:
+	kUnLockForSystemData(bPreviousFlag);
+	return NULL;
 }
 static void kSetUpTask(TCB* pstTCB, QWORD qwFlags,QWORD qwEntryPointAddress ,\
 		void* pvStackAddress, QWORD qwStackSize){
@@ -106,8 +138,9 @@ static void kSetUpTask(TCB* pstTCB, QWORD qwFlags,QWORD qwEntryPointAddress ,\
 	//RIP RSP RBP setting
 	pstTCB->stContext.vqRegister[TASK_RIPOFFSET] = qwEntryPointAddress;
 
-	pstTCB->stContext.vqRegister[TASK_RSPOFFSET] =	(QWORD)pvStackAddress + qwStackSize;
-	pstTCB->stContext.vqRegister[TASK_RBPOFFSET] =	(QWORD)pvStackAddress + qwStackSize;
+	pstTCB->stContext.vqRegister[TASK_RSPOFFSET] =	(QWORD)pvStackAddress + qwStackSize - 8;
+	pstTCB->stContext.vqRegister[TASK_RBPOFFSET] =	(QWORD)pvStackAddress + qwStackSize - 8;
+	*(QWORD*)((QWORD)pvStackAddress + qwStackSize - 8) = (QWORD) kExitTask;
 
 	//interrupt flag set
 	//새로운 태스크는 기본적으로 인터럽트가 활성화 되어있다!
@@ -184,12 +217,33 @@ TCB* kGetTCBInTCBPool(int iOffset){
 	pstTCB = (TCB*)TASK_TCBPOOLADDRESS;
 	return &(pstTCB[iOffset]);
 }
+//쓰레드 관련 함수
+TCB* kGetProcessByThread(TCB* pstThread){
+	TCB* pstTCB;
+	if(pstThread->qwFlags & TASK_FLAGS_PROCESS){
+		return pstThread;
+	}
+	pstTCB = kGetTCBInTCBPool(GETTCBOFFSET(pstThread->qwParentTaskID));
+	if((pstTCB == NULL)|| (pstTCB->stLinkedList.Node_ID != pstThread->qwParentTaskID)){
+		return NULL;
+	}
+	return pstTCB;
+}
 //스케줄러 관련 함수-초기화
 void kInitializeScheduler( void ){
 	int i;
+	TCB* pstTCB;
+	pstTCB = kAllocTCB();
+	pstTCB->qwFlags = TASK_FLAGS_HIGHEST | TASK_FLAGS_SYSTEM | TASK_FLAGS_PROCESS;
+	pstTCB->qwParentTaskID = pstTCB->stLinkedList.Node_ID;
+	pstTCB->pvMemoryAddress = (void*)0x100000;
+	pstTCB->qwMemorySize = 0x500000;
+	pstTCB->pvStackAddress = (void*)0x600000;
+	pstTCB->qwStackSize = 0x100000;
+	InitializeLinkedListManger(&(pstTCB->stChildThreadList));
+
 	gs_stScheduler.iProcessorTime = TASK_PROCESSORTIME;
-	gs_stScheduler.pstRunningTCB = kAllocTCB();
-	gs_stScheduler.pstRunningTCB->qwFlags = TASK_FLAGS_HIGHEST;
+	gs_stScheduler.pstRunningTCB = pstTCB;
 	gs_stScheduler.qwProcessorLoad = 0;
 	gs_stScheduler.qwSpendProcessorTimeInIdleTask = 0;
 	for(i=0;i<TASK_MAXREADYLISTCOUNT;i++){
@@ -269,7 +323,7 @@ static TCB* kRemoveTaskReadyList( QWORD qwID ){
 	bPriority = GETPRIORITY(pstTargetTCB->qwFlags);
 	iIndex = find(&(gs_stScheduler.stReadyList[bPriority]), qwID);
 	if(iIndex == -1){
-		kPrintf("find() failed...\n");
+		kPrintf("qwID:[0x%q] find() failed...\n",qwID);
 		return NULL;
 	}
 	return erase(&(gs_stScheduler.stReadyList[bPriority]), iIndex);
@@ -365,6 +419,7 @@ BOOL kScheduleInterrupt( void ){
 	TCB* pstRunningTask, * pstNextTask;
 	char* pstSavedContext;
 	BOOL bPreviousFlag;
+
 	bPreviousFlag = kLockForSystemData();
 	pstNextTask = kGetNextTaskToRun();
 	if(pstNextTask == NULL){
@@ -392,7 +447,6 @@ BOOL kScheduleInterrupt( void ){
 			return FALSE;
 		}
 	}
-
 	//kPrintf("interrupt:%q\n",pstRunningTask);
 	//kPrintf("interrupt:%q\n",pstNextTask);
 	//컨택스트 스위칭 핵심 부분
@@ -422,10 +476,13 @@ QWORD kGetProcessorLoad( void ){
 }
 void kIdleTask( void ){
 	TCB* pstTask;
+	TCB* pstChildThread;
+	TCB* pstProcess;
 	QWORD qwLastMeasureTickCount ,qwLastSpendTickInIdleTask;
 	QWORD qwCurrentMeasureTickCount ,qwCurrentSpendTickInIdleTask;
 	QWORD qwTaskID;
 	BOOL bPreviousFlag;
+	int iCount,i,iIndex;
 	qwLastMeasureTickCount = kGetTickCount();
 	qwLastSpendTickInIdleTask = gs_stScheduler.qwSpendProcessorTimeInIdleTask;
 	while(1){
@@ -453,11 +510,44 @@ void kIdleTask( void ){
 					kUnLockForSystemData(bPreviousFlag);
 					break;
 				}
-				kPrintf("IDLE: Task ID[0x%q] is completely ended.\n",\
-						pstTask->stLinkedList.Node_ID);
+				//프로세스라면?
+				if(pstTask->qwFlags & TASK_FLAGS_PROCESS){
+					iCount = count(&(pstTask->stChildThreadList));
+					pstChildThread = front(&(pstTask->stChildThreadList));
+					Print_LinkedList(&(pstTask->stChildThreadList));
+					for( i = 0; i < iCount; i++ ){
+						if(pstChildThread == NULL)
+							break;
+						//단순히 플래그를 세우고 유휴 태스크가 자식 쓰레드를 처리하길 기다린다.
+						if(((GETTCBFROMTHREADLINK(pstChildThread))->qwFlags & TASK_FLAGS_ENDTASK) == 0)
+							kEndTask((GETTCBFROMTHREADLINK(pstChildThread))->stLinkedList.Node_ID);
+						pstChildThread = (TCB*)get_next_node((LINKEDLIST*)pstChildThread);
+					}
+					if(count(&(pstTask->stChildThreadList))>0){
+						push_back(&(gs_stScheduler.stWaitList), pstTask);
+						kUnLockForSystemData(bPreviousFlag);
+						continue;
+					}else{
+						//memory clean
+					}
+				}else if(pstTask->qwFlags & TASK_FLAGS_THREAD){
+					pstProcess = kGetProcessByThread(pstTask);
+					if(pstProcess != NULL ){
+						iIndex = find(&(pstProcess->stChildThreadList), pstTask->stLinkedList.Node_ID);
+						if(iIndex == -1){
+							kPrintf("Thread[0x%q] find() failed...\n",pstTask->stLinkedList.Node_ID);
+							kUnLockForSystemData(bPreviousFlag);
+							continue;
+						}
+						erase(&(pstProcess->stChildThreadList), iIndex);
+					}
+				}
+				//태스크라면?
 				qwTaskID = pstTask->stLinkedList.Node_ID;
 				kFreeTCB(qwTaskID);
 				kUnLockForSystemData(bPreviousFlag);
+				kPrintf("IDLE: Task ID[0x%q] is completely ended.\n",\
+										pstTask->stLinkedList.Node_ID);
 			}
 		}
 		kSchedule();

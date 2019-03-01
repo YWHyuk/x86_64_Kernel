@@ -27,4 +27,5 @@ int kVSPrintf( char* pcBuffer, const char* pcFormatString, va_list ap);
 BOOL kIsPrintable(char cKey);
 QWORD kGetTickCount(void);
 extern volatile QWORD g_qwTickCount;
+void kSleep(QWORD qwMillisecond);
 #endif /* __UTILITY_H__ */
