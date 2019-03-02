@@ -10,6 +10,7 @@
 #include "Utility.h"
 #include "Task.h"
 #include "Descriptor.h"
+#include "AssemblyUtility.h"
 
 void kCommonExceptionHandler(int iVectorNumber, QWORD qwErrorCode){
 	//QWORD* i=0x800000UL;
@@ -78,5 +79,46 @@ void kTimerHandler(int iVectorNumber){
 	if(kIsProcessorTimeExpired()==TRUE){
 		kScheduleInterrupt();
 	}
+}
+void kDeviceNotAvailableHandler(int iVectorNumber)
+{
+	/*
+	 * FPU 연산을 하려던 와중 TS 비트가 설정된 경우 실행되는 핸들러이다.
+	 *
+	 */
+	char vcBuffer[]="[EXC:  , ]";
+	static int g_iCommonInterruptCount= 0;
+	BYTE bTemp;
+	FPUCONTEXT* pstFPUContext;
+	TCB* pstCurrentTCB;
+	QWORD qwLastFPUUsedTaskID;
+
+	vcBuffer[5]='0' + iVectorNumber / 10;
+	vcBuffer[6]='0' + iVectorNumber % 10;
+
+	vcBuffer[8]='0' + g_iCommonInterruptCount;
+	g_iCommonInterruptCount = (g_iCommonInterruptCount + 1 ) % 10;
+	kPrintStringXY(0, 0, vcBuffer);
+
+	kClearTS();
+	pstFPUContext = (FPUCONTEXT*)TASK_FPUCONTEXTPOOLADDRESS;
+
+	qwLastFPUUsedTaskID = kGetLastFPUUSEDTaskID();
+	pstCurrentTCB = kGetRunningTCB();
+
+	if(qwLastFPUUsedTaskID==kGetRunningTCB()->stLinkedList.Node_ID){
+		return;
+	}else if(qwLastFPUUsedTaskID != TASK_INVALIDID){
+		kSaveFPUContext(&(pstFPUContext[GETTCBOFFSET(qwLastFPUUsedTaskID)]));
+	}
+
+	if(pstCurrentTCB->bFPUUsed == TRUE){
+		kLoadFPUContext( &(pstFPUContext[GETTCBOFFSET(pstCurrentTCB->stLinkedList.Node_ID)]));
+	}else{
+		kInitializeFPU();
+		pstCurrentTCB->bFPUUsed = TRUE;
+		pstCurrentTCB->pstFPUContext = &(pstFPUContext[GETTCBOFFSET(pstCurrentTCB->stLinkedList.Node_ID)]);
+	}
+	kSetFPUUSEDTaskID(pstCurrentTCB->stLinkedList.Node_ID);
 }
 

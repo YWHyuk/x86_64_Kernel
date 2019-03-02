@@ -20,6 +20,7 @@ void kInitializeTCBPool( void ){
 	gs_stTCBPoolManager.dwAllocatedCount = 1;
 	//
 	kMemCpy(TASK_TCBPOOLADDRESS, 0, sizeof(TCB)*TASK_MAXCOUNT);
+	kMemCpy(TASK_FPUCONTEXTPOOLADDRESS, 0, sizeof(FPUCONTEXT)*TASK_MAXCOUNT);
 	//TCB POOL 영역 초기화
 	for(i=0;i<TASK_MAXCOUNT;i++){
 		InitializeLinkedList(&(gs_stTCBPoolManager.pstTCBStartAddress[i].stLinkedList));
@@ -96,6 +97,7 @@ TCB* kCreateTask( QWORD qwFlags, void* pvMemoryAddress,QWORD qwMemorySize, QWORD
 	kSetUpTask(pstNewTCB, qwFlags, qwEntryPointAddress, pvStackAddress, TASK_STACKSIZE);
 
 	InitializeLinkedListManger(&(pstNewTCB->stChildThreadList));
+	pstNewTCB->bFPUUsed = FALSE;
 	//Critical section start-Writing TCB to Scheduler's Task List
 	bPreviousFlag= kLockForSystemData();
 	if(kAddTaskToReadyList(pstNewTCB)==FALSE)//TCB와 링크드 리스트는 한몸이므로, 둘중 하나만 걸릴 수 없다.
@@ -246,6 +248,7 @@ void kInitializeScheduler( void ){
 	gs_stScheduler.pstRunningTCB = pstTCB;
 	gs_stScheduler.qwProcessorLoad = 0;
 	gs_stScheduler.qwSpendProcessorTimeInIdleTask = 0;
+	gs_stScheduler.qwLastFPUUsedTaskID = TASK_INVALIDID;
 	for(i=0;i<TASK_MAXREADYLISTCOUNT;i++){
 		InitializeLinkedListManger(&(gs_stScheduler.stReadyList[i]));
 		gs_stScheduler.viExecuteCount[i] = 0;
@@ -385,6 +388,11 @@ void kSchedule(void){
 		gs_stScheduler.qwSpendProcessorTimeInIdleTask += \
 				(TASK_PROCESSORTIME - gs_stScheduler.iProcessorTime);
 	}
+	if(gs_stScheduler.qwLastFPUUsedTaskID != pstNextTask->stLinkedList.Node_ID){
+		kSetTS();
+	}else{
+		kClearTS();
+	}
 	gs_stScheduler.iProcessorTime = TASK_PROCESSORTIME;
 	//종료를 기다리는 태스크 처리 분기문
 	if((pstRunningTask->qwFlags & TASK_FLAGS_ENDTASK)==TASK_FLAGS_ENDTASK){
@@ -458,6 +466,11 @@ BOOL kScheduleInterrupt( void ){
 			pstNextTask->stContext.vqRegister[TASK_RIPOFFSET];
 	gs_stScheduler.iProcessorTime = TASK_PROCESSORTIME;
 	kUnLockForSystemData(bPreviousFlag);
+	if(gs_stScheduler.qwLastFPUUsedTaskID != pstNextTask->stLinkedList.Node_ID){
+		kSetTS();
+	}else{
+		kClearTS();
+	}
 	kMemCpy((void*)pstSavedContext,&(pstNextTask->stContext), sizeof(CONTEXT));
 	//kReadContext(pstSavedContext);
 	return TRUE;
@@ -546,7 +559,7 @@ void kIdleTask( void ){
 				qwTaskID = pstTask->stLinkedList.Node_ID;
 				kFreeTCB(qwTaskID);
 				kUnLockForSystemData(bPreviousFlag);
-				kPrintf("IDLE: Task ID[0x%q] is completely ended.\n",\
+				//kPrintf("IDLE: Task ID[0x%q] is completely ended.\n",\
 										pstTask->stLinkedList.Node_ID);
 			}
 		}
@@ -565,7 +578,16 @@ void kHaltProcessorByLoad( void ){
 		kHlt();
 	}
 }
-
+//================================================================
+//FPU 관련
+//================================================================
+QWORD kGetLastFPUUSEDTaskID( void )
+{
+	return gs_stScheduler.qwLastFPUUsedTaskID;
+}
+void kSetFPUUSEDTaskID( QWORD qwTaskID){
+	gs_stScheduler.qwLastFPUUsedTaskID = qwTaskID;
+}
 //for debug
 void kReadContext(CONTEXT* pstContext){
 	int i;

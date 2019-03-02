@@ -51,6 +51,8 @@ static void kTestThread(int iArgc, const char** pcArgv);
 static void kPrintNumberTask( int iArgc, const char** pcArgv );
 static void kTestMutex( int iArgc, const char** pcArgv );
 static void kShowMatrix( int iArgc, const char** pcArgv );
+static void kFPUTestTask(void);
+static void kTestPIE( int iArgc, const char** pcArgv );
 
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex);
 QWORD kRandom( void );

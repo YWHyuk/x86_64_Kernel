@@ -6,6 +6,7 @@ global kEnableInterrupt,kDisableInterrupt,kReadRFLAGS
 global kSoftInterrupt,kReadTSC
 global kContextSwitch, kHlt;
 global kTestAndSet;
+global kInitializeFPU,kSaveFPUContext,kLoadFPUContext,kSetTS,kClearTS;
 ; BYTE kInPortByte(WORD wPort);
 ;
 kInPortByte:
@@ -156,6 +157,25 @@ kHlt:
 	hlt
 	hlt
 	ret
+ kInitializeFPU:
+ 	finit
+ 	ret
+ kSaveFPUContext:
+ 	fxsave [rdi]
+ 	ret
+ kLoadFPUContext:
+ 	fxrstor [rdi]
+ kSetTS:
+ 	push rax
+ 	mov rax, cr0
+ 	or	rax, 0x08
+ 	mov cr0, rax
+
+ 	pop rax
+ 	ret
+ kClearTS:
+ 	clts
+ 	ret
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;BOOL kTestAndSet( volatile BYTE* pbDestination, BYTE bCompare, BYTE bSource)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

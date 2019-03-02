@@ -40,7 +40,8 @@
 #define TASK_TCBPOOLADDRESS			0x800000UL
 #define TASK_MAXCOUNT				1024
 
-#define TASK_STACKPOOLADDRESS		(TASK_TCBPOOLADDRESS + sizeof(TCB)*TASK_MAXCOUNT)
+#define TASK_FPUCONTEXTPOOLADDRESS	((((TASK_TCBPOOLADDRESS + sizeof(TCB)*TASK_MAXCOUNT) >> 4) + 1) << 4)
+#define TASK_STACKPOOLADDRESS		(TASK_FPUCONTEXTPOOLADDRESS + sizeof(FPUCONTEXT)*TASK_MAXCOUNT)
 #define TASK_STACKSIZE				8192
 
 #define TASK_INVALIDID				0xFFFFFFFFFFFFFFFF
@@ -70,7 +71,9 @@
 typedef struct kContextStruct{
 	QWORD vqRegister[TASK_REGISTERCOUNT];
 }CONTEXT;
-
+typedef struct kFPUContext{
+	QWORD vqwFPUContext[512/8];
+}FPUCONTEXT;
 typedef struct kTaskControlBlockStruct{
 	/*
 	 *     <TASK CONTROL BLOCK>
@@ -103,8 +106,12 @@ typedef struct kTaskControlBlockStruct{
 	CONTEXT stContext;
 	void* pvStackAddress;
 	QWORD qwStackSize;
-
+	//FPU AREA
+	FPUCONTEXT* pstFPUContext;
+	BOOL bFPUUsed;
 }TCB;
+
+
 typedef struct kTCBPoolManagerStruct{
 	TCB* pstTCBStartAddress;
 	int iTaskCount;
@@ -127,41 +134,67 @@ typedef struct kSchedulerStruct{
 	QWORD qwProcessorLoad;
 	//유휴 태스크에서 소비한 시간
 	QWORD qwSpendProcessorTimeInIdleTask;
+	//QWORD
+	QWORD qwLastFPUUsedTaskID;
 }SCHEDULER;
 #pragma pack( pop )
+//================================================================
 //태스크 관련 함수-초기화
+//================================================================
 void kInitializeTCBPool( void );
+//================================================================
 //태스크 관련 함수-할당 해제
+//================================================================
 static TCB* kAllocTCB( void );
 static void kFreeTCB( QWORD qwID );
+//================================================================
 //태스크 관련 함수-생성
+//================================================================
 TCB* kCreateTask( QWORD qwFlags, void* pvMemoryAddress,QWORD qwMemorySize, QWORD qwEntryPointAddress);
 static void kSetUpTask(TCB* pstTCB, QWORD qwFlags,QWORD qwEntryPointAddress ,\
 		void* pvStackAddress, QWORD qwStackSize);
+//================================================================
 //태스크 관련 함수-우선순위 변경
+//================================================================
 BOOL kChangePriority(QWORD qwTaskID, BYTE bPriority);
+//================================================================
 //태스크 관련 함수-태스크 종료
+//================================================================
 BOOL kEndTask(QWORD qwTaskID);
 void kExitTask( void );
+//================================================================
 //태스크 관련 함수-nodeId
+//================================================================
 TCB* kGetTCBInTCBPool(int iOffset);
+//================================================================
 //쓰레드 관련 함수
+//================================================================
 TCB* kGetProcessByThread(TCB* pstThread);
+//================================================================
 //스케줄러 관련 함수-초기화
+//================================================================
 void kInitializeScheduler( void );
+//================================================================
 //스케줄러 관련 함수-TCB* pstCurrentTCB 접근 함수;
+//================================================================
 void kSetRunningTCB( TCB* pstTask);
 TCB* kGetRunningTCB( void );
+//================================================================
 //스케줄러 관련 함수-LIST* stReadyList 접근 함수;
+//================================================================
 static TCB* kGetNextTaskToRun( void );
 static BOOL kAddTaskToReadyList( TCB* pstTask);
 static TCB* kRemoveTaskReadyList( QWORD qwID );
 int kGetReadyTaskCount( void );
 int kGetTaskCount( void );
+//================================================================
 //스케줄러 관련 함수-iProcessorTime 겁근 함수
+//================================================================
 void kDecreaseProcessorTime( void );
 BOOL kIsProcessorTimeExpired( void );
+//================================================================
 //스케줄러 함수
+//================================================================
 void kSchedule(void);
 BOOL kScheduleInterrupt(void);
 
@@ -169,7 +202,13 @@ BOOL kIsTaskExist(QWORD qwID);
 QWORD kGetProcessorLoad( void );
 void kIdleTask( void );
 void kHaltProcessorByLoad( void );
-
+//================================================================
+//FPU 관련
+//================================================================
+QWORD kGetLastFPUUSEDTaskID( void );
+void kSetFPUUSEDTaskID( QWORD qwTaskID);
+//================================================================
 //for debug
+//================================================================
 void kReadContext(CONTEXT* pstContext);
 #endif /* __02_KERNEL64_SOURCE_TASK_H_ */

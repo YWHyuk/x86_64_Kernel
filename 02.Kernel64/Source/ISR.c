@@ -134,7 +134,7 @@ void kISRInvalidOpcode(){
 }
 void kISRDeviceNotAvailable( void ){
 	kSAVECONTEXT();
-	kCommonExceptionHandler(7, 0);
+	kDeviceNotAvailableHandler(7);
 	kLOADCONTEXT();
 	__asm__ __volatile__(
 			"iretq"
