@@ -53,6 +53,10 @@ static void kTestMutex( int iArgc, const char** pcArgv );
 static void kShowMatrix( int iArgc, const char** pcArgv );
 static void kFPUTestTask(void);
 static void kTestPIE( int iArgc, const char** pcArgv );
+void kShowDynamicMemoryInformation( int iArgc, const char** pcArgv );
+static void kTestRandomAllocation( int iArgc, const char** pcArgv );
+static void kRandomAllocationTask( void );
+static void kTestRandomAllocation( int iArgc, const char** pcArgv );
 
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex);
 QWORD kRandom( void );

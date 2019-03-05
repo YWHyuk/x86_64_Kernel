@@ -527,7 +527,7 @@ void kIdleTask( void ){
 				if(pstTask->qwFlags & TASK_FLAGS_PROCESS){
 					iCount = count(&(pstTask->stChildThreadList));
 					pstChildThread = front(&(pstTask->stChildThreadList));
-					Print_LinkedList(&(pstTask->stChildThreadList));
+					Print_LinkedList(&(pstTask->stChildThreadList),NULL);
 					for( i = 0; i < iCount; i++ ){
 						if(pstChildThread == NULL)
 							break;

@@ -45,7 +45,7 @@ Disk.img: 00.BootLoader/BootLoader.bin 01.Kernel32/Kernel32.bin 02.Kernel64/Kern
 	@echo
 	
 	@echo ============================== Sending to VM =======================================
-	scp -P 2222 Disk.img 192.168.56.1:/home/dewh/disk_dir/disk.img
+	scp -P 2222 Disk.img 127.0.0.1:/home/dewh/disk_dir/disk.img
 	@echo ============================== Sending to VM =======================================
 	
 	

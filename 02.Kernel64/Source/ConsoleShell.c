@@ -13,6 +13,7 @@
 #include "Task.h"
 #include "ISR.h"
 #include "Synchronization.h"
+#include "DynamicMemory.h"
 
 SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"help", "Show Help",kHelp},
@@ -34,7 +35,10 @@ SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"testmutex", "Test Mutex Function",kTestMutex},
 		{"testthread","Test Thread And Process Function",kTestThread},
 		{"showmatrix","Show Matrix Screen",kShowMatrix},
-		{"testpie","Test PIE Calculation",kTestPIE}
+		{"testpie","Test PIE Calculation",kTestPIE},
+		{"dynamicmeminfo","Show Dynamic Memory Information",kShowDynamicMemoryInformation},
+		{"testranalloc","Test Random Allocation & Free",kTestRandomAllocation},
+		{"debug","",debug}
 };
 void kStartConsoleShell(void){
 	char vcCommandBuffer[CONSOLESHELL_MAXCOMMANDBUFFERCOUNT];
@@ -144,13 +148,12 @@ void kExecuteCommand(const char* pcCommandBuffer){
 		kPrintf("'%s' is not found...\n",pcArgv);
 		return;
 	}
-	pfFunction(iArgc,ppcArgv);
+	pfFunction(iArgc,(const char**)ppcArgv);
 }
 //void kInitializeParameter( PARAMETERLIST* pstList, const char* pcParameter){}
 //int kGetNextParameter( PARAMETERLIST* pstList, char* pcParameter){}
 //실제 커맨드 함수
 static void kHelp( int iArgc, const char** pcArgv ){
-	int iCount;
 	int i,iCommandNumber;
 	int iX,iY;
 	int iMaxCommandLength=0;
@@ -165,6 +168,15 @@ static void kHelp( int iArgc, const char** pcArgv ){
 			iMaxCommandLength = iTemp;
 	}
 	for(i=0;i<iCommandNumber;i++){
+		if((i % 10 == 0 ) && (i != 0)){
+			kPrintStringXY(0, CONSOLE_HEIGHT-1, "Press and key to continue...('q' is exit) : ");
+			if(kGetCh()=='q'){
+				kPrintStringXY(0, CONSOLE_HEIGHT-1, "                                            ");
+				break;
+			}
+			kPrintStringXY(0, CONSOLE_HEIGHT-1, "                                            ");
+
+		}
 		kPrintf("  %s",gs_vstCommandTable[i].pcCommand);
 		kGetCursor(&iX, &iY);
 		kSetCursor(iMaxCommandLength + 12 , iY );
@@ -641,3 +653,98 @@ static void kTestPIE( int iArgc, const char** pcArgv )
 		kCreateTask(TASK_FLAGS_LOW | TASK_FLAGS_THREAD, 0, 0, (QWORD)kFPUTestTask);
 	}
 }
+void kShowDynamicMemoryInformation( int iArgc, const char** pcArgv )
+{
+	QWORD qwRemain=0;
+	QWORD qwUsed=0;
+	QWORD qwTotal=0;
+	QWORD qwFreeChunknum, qwInUseChunknum;
+	FREECHUNK* pstFreeChunk;
+	LINKEDLIST* pstLinkedList;
+	qwFreeChunknum= count(&(gs_stChunkManager.Free_Chunk_LinkedListManager));
+	qwInUseChunknum= count(&(gs_stChunkManager.Chunk_LinkedListManager)) - qwFreeChunknum;
+
+	Print_LinkedList(&(gs_stChunkManager.Chunk_LinkedListManager),Print_InUse_Chunk);
+	Print_LinkedList(&(gs_stChunkManager.Free_Chunk_LinkedListManager),Print_Free_Chunk);
+
+	for(pstLinkedList = front(&(gs_stChunkManager.Chunk_LinkedListManager));\
+	pstLinkedList!=NULL; pstLinkedList = get_next_node(pstLinkedList)){
+		pstFreeChunk = (FREECHUNK*) GETCHUNKADDRESS(pstLinkedList);
+		if(pstFreeChunk->qwMagic == CHUNK_TYPE_FREE)
+			qwRemain += pstFreeChunk->qwSize;
+		else
+			qwUsed	+= pstFreeChunk->qwSize;
+	//	kPrintf("%q\t",pstLinkedList);
+	}
+	kPrintf("Alloced Memory: [%d], Remain Memory: [%d], Totla Memory: [%d]\n",qwUsed,qwRemain,qwRemain+qwUsed);
+	kPrintf("Used Chunk: [%d], Free Chunk: [%d], Sum Memory: [%d]\n",qwInUseChunknum*sizeof(INUSECHUNK),\
+			qwFreeChunknum*sizeof(FREECHUNK),qwInUseChunknum*sizeof(INUSECHUNK)+qwFreeChunknum*sizeof(FREECHUNK));
+	kPrintf("All memory: [%d]\n",qwRemain+qwUsed+qwInUseChunknum*sizeof(INUSECHUNK)+qwFreeChunknum*sizeof(FREECHUNK));
+}
+static void kRandomAllocationTask( void )
+{
+	TCB* pstTask;
+	QWORD qwMemortySize;
+	char vcBufferr[ 200 ];
+	BYTE* pbAllocationBuffer;
+	int i,j;
+	int iY;
+	pstTask = kGetRunningTCB();
+	iY = (pstTask->stLinkedList.Node_ID) % 15 + 9;
+	for(j = 0; j < 10; j++ ){
+		do{
+			qwMemortySize = ((kRandom() % (32 * 1024))+1) * 1024;
+			pbAllocationBuffer = kMalloc(qwMemortySize);
+			if(pbAllocationBuffer == 0){
+				kSleep(1);
+				while(1);
+				//kPrintf("[0x%q] I'm waiting...\n",kGetRunningTCB());
+			}
+		}while(pbAllocationBuffer == 0);
+		kSPrintf(vcBufferr, "|Address: [0x%Q] Size:[0x%Q] Allocation Success",pbAllocationBuffer,qwMemortySize);
+		kPrintStringXY(20, iY, vcBufferr);
+		kSleep(200);
+
+		kSPrintf(vcBufferr, "|Address: [0x%Q] Size:[0x%Q] Data write          ",\
+				pbAllocationBuffer, qwMemortySize);
+		kPrintStringXY(20, iY, vcBufferr);
+		for(i = 0; i < qwMemortySize / 2; i++ ){
+			pbAllocationBuffer[i] = kRandom() % 0xFF;
+			pbAllocationBuffer[i + (qwMemortySize/2)] = pbAllocationBuffer[i];
+		}
+		kSleep(200);
+
+		kSPrintf(vcBufferr, "|Address: [0x%Q] Size:[0x%Q] Data verify          ",pbAllocationBuffer,qwMemortySize);
+		kPrintStringXY(20, iY, vcBufferr);
+		for(i = 0; i < qwMemortySize / 2; i++ ){
+			if(	pbAllocationBuffer[i] != pbAllocationBuffer[i + (qwMemortySize/2)]){
+				kPrintf("Task ID[0x%Q] Verify Fail\n",pstTask->stLinkedList.Node_ID);
+				kExitTask();
+			}
+		}
+		kFree(pbAllocationBuffer);
+		kSleep(200);
+	}
+	kExitTask();
+}
+static void kTestRandomAllocation( int iArgc, const char** pcArgv )
+{
+
+	int i;
+	BYTE* temp[3];
+	/*
+	for(i=0;i<3;i++){
+		temp[i] = kMalloc(1);
+	}
+	kFree(temp[2]);
+	kFree(temp[0]);
+	kFree(temp[1]);
+	kGetCh();
+	while(1);
+	*/
+	kClearScreen();
+	for( i = 0; i< 1000; i++){
+		kCreateTask(TASK_FLAGS_LOW|TASK_FLAGS_THREAD, (void*)0, 0, (QWORD)kRandomAllocationTask);
+	}
+}
+

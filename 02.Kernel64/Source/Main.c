@@ -36,10 +36,14 @@ void Main(void){
 	    kSetCursor(45, iCursorY++);
 	    kPrintf("[pass], Size = %d MB\n",kGetTotalRAMSize());
 
-	    kPrintf("TCP Pool And Scheduler Initialize...\n");
+	    kPrintf("TCB Pool And Scheduler Initialize...\n");
 	    kInitializeTCBPool();
 	    kInitializeScheduler();
 	    kInitializePIT(MSTOCOUNT(1), 1);
+	    kPrintStringXY(45, iCursorY++, "[pass]");
+
+	    kPrintf("Dynamic Memory Initialize...\n");
+	    kInitializeDynamicMemory();
 	    kPrintStringXY(45, iCursorY++, "[pass]");
 
 	    kPrintf("Keyboard Activate\n");

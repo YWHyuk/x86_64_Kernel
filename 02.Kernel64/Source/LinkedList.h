@@ -8,6 +8,7 @@
 #ifndef __LINKEDLIST_H_
 #define __LINKEDLIST_H_
 #include "Types.h"
+#define LINKEDLIST_MAX			0xFFFFFFFFFFFFFFFFUL
 #pragma pack(push, 1)
 typedef struct stLinkedList{
 	void* Next_LinkedList;
@@ -33,6 +34,9 @@ void clear(LINKEDLISTMANAGER* LinkedListManager);
 //Random access로 노드를 추가/제거
 BOOL insert(LINKEDLISTMANAGER* LinkedListManager, void* Next_LinkedList, QWORD Node_Position);
 void* erase(LINKEDLISTMANAGER* LinkedListManager,QWORD Node_Position);
+void* erase_node(LINKEDLISTMANAGER* LinkedListManager,LINKEDLIST* pstCurrent_node);
+BOOL insert_behind(LINKEDLISTMANAGER* LinkedListManager, void* Next_LinkedList, LINKEDLIST* Prev_LinkedList);
+/*Prev_linkedlist는 NULL이 되서는 안된다.*/
 //제일 앞에 노드 추가/제거
 BOOL push_front(LINKEDLISTMANAGER* LinkedListManager,void* Next_LinkedList);
 void* pop_front(LINKEDLISTMANAGER* LinkedListManager);
@@ -45,5 +49,5 @@ void* get_prev_node(LINKEDLIST* LinkedList);
 QWORD get_node_id(LINKEDLIST* LinkedList);
 //debug
 void Inconsistency_Found();
-void Print_LinkedList();
+void Print_LinkedList(LINKEDLISTMANAGER* LinkedListManager, void* Print_Structure);
 #endif /* LINKEDLIST_H_ */

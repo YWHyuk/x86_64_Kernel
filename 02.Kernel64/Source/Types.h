@@ -11,6 +11,10 @@
 #define FALSE	0
 #define NULL	0
 
+#ifndef size_t
+#define size_t QWORD
+#endif
+
 #define offsetof(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
 #pragma pack( push, 1 )
 

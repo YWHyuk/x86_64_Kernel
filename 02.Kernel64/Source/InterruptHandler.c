@@ -11,6 +11,7 @@
 #include "Task.h"
 #include "Descriptor.h"
 #include "AssemblyUtility.h"
+#include "ConsoleShell.h"
 
 void kCommonExceptionHandler(int iVectorNumber, QWORD qwErrorCode){
 	//QWORD* i=0x800000UL;
