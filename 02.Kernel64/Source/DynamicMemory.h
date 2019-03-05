@@ -44,6 +44,6 @@ BOOL coalesce(FREECHUNK* pstCurrent,FREECHUNK* pstNext);
 void Print_Free_Chunk(LINKEDLIST* pstLinkedList);
 void Print_InUse_Chunk(LINKEDLIST* pstLinkedList);
 
-void debug();
+void garbage_collect();
 
 #endif /* __02_KERNEL64_SOURCE_DYNAMICMEMORY_H_ */

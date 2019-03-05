@@ -309,6 +309,14 @@ void Print_LinkedList(LINKEDLISTMANAGER* LinkedListManager, void* Print_Structur
 	kPrintf("<LINKEDLIST>\n");
 	for(Iterator=(LINKEDLIST*)front(LinkedListManager);Iterator!=NULL;\
 	Iterator=Iterator->Next_LinkedList){
+		if(++iCount % 5 == 0){
+		kPrintStringXY(0, CONSOLE_HEIGHT-1, "Press and key to continue...('q' is exit) : ");
+			if(kGetCh()=='q'){
+				kPrintStringXY(0, CONSOLE_HEIGHT-1, "                                            ");
+				break;
+			}
+		}
+		kPrintStringXY(0, CONSOLE_HEIGHT-1, "                                            ");
 		kPrintf("\tAddress:%q\tNext:%q\tPrev:%q\tID:%q\n",\
 				Iterator,Iterator->Next_LinkedList,Iterator->Prev_LinkedList,Iterator->Node_ID);
 		if(Print_Inner != NULL)

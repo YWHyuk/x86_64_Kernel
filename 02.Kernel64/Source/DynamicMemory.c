@@ -112,12 +112,9 @@ void kFree(void* pvAddress)
 	 */
 	INUSECHUNK* pstInUseChunk;
 	INUSECHUNK* pstPrev, *pstNext;
-	FREECHUNK *pstCurrentNode, *pstNextNode;
 	LINKEDLIST* pstTempLinkedList;
-	LINKEDLIST* pstLinkedList;
 
 	int iIndex;
-	void* pvPrev, *pvNext;
 	BOOL bIsPrevFree = FALSE, bIsNextFree = FALSE;
 	BOOL bPrevious;
 	BOOL bRet;
@@ -152,16 +149,29 @@ void kFree(void* pvAddress)
 			kPrintf("insert behind failed...\n");
 		//kPrintf("insert:[0x%q],[0x%q]\n",pstPrev,pstInUseChunk);
 	}
-	pstInUseChunk->qwMagic = CHUNK_TYPE_UNREADY;
-	kUnLockForSystemData(bPrevious);
-
-	/*병합 스타트*/
-	bPrevious = kLockForSystemData();
-	debug();
+	pstInUseChunk->qwMagic = CHUNK_TYPE_FREE;
+	/* 병합 스타트
+	 *
+	 * 병합하는 순서 중요!!
+	 * 매 번 garbage_collect 호출하니까 성능 안좋음
+	 */
+	pstTempLinkedList = pstInUseChunk->Chunk_Linkestlist.Next_LinkedList;
+	if(pstTempLinkedList != NULL){
+		pstNext = (INUSECHUNK*)GETCHUNKADDRESS(pstTempLinkedList);
+		if((pstNext->qwMagic != CHUNK_TYPE_USE) && (pstInUseChunk->qwMagic != CHUNK_TYPE_USE))
+			coalesce((FREECHUNK*)pstInUseChunk, (FREECHUNK*)pstNext);
+	}
+	pstTempLinkedList = pstInUseChunk->Chunk_Linkestlist.Prev_LinkedList;
+	if(pstTempLinkedList != NULL){
+		pstPrev = (INUSECHUNK*)GETCHUNKADDRESS(pstTempLinkedList);
+		if((pstPrev->qwMagic != CHUNK_TYPE_USE) && (pstInUseChunk->qwMagic != CHUNK_TYPE_USE))
+			coalesce((FREECHUNK*)pstPrev, (FREECHUNK*)pstInUseChunk);
+	}
 	kUnLockForSystemData(bPrevious);
 	return;
 }
-void debug(){
+void garbage_collect(){
+	/*garbage collecting*/
 	BOOL bPrevious;
 	LINKEDLIST* pstLinkedList;
 	FREECHUNK* pstCurrentNode;

@@ -38,7 +38,7 @@ SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"testpie","Test PIE Calculation",kTestPIE},
 		{"dynamicmeminfo","Show Dynamic Memory Information",kShowDynamicMemoryInformation},
 		{"testranalloc","Test Random Allocation & Free",kTestRandomAllocation},
-		{"debug","",debug}
+		{"garbagecollect","",garbage_collect}
 };
 void kStartConsoleShell(void){
 	char vcCommandBuffer[CONSOLESHELL_MAXCOMMANDBUFFERCOUNT];
@@ -697,7 +697,6 @@ static void kRandomAllocationTask( void )
 			pbAllocationBuffer = kMalloc(qwMemortySize);
 			if(pbAllocationBuffer == 0){
 				kSleep(1);
-				while(1);
 				//kPrintf("[0x%q] I'm waiting...\n",kGetRunningTCB());
 			}
 		}while(pbAllocationBuffer == 0);
@@ -725,6 +724,8 @@ static void kRandomAllocationTask( void )
 		kFree(pbAllocationBuffer);
 		kSleep(200);
 	}
+	kSPrintf(vcBufferr, "Task[0x%q] Done",kGetRunningTCB());
+	kPrintStringXY(0, iY, vcBufferr);
 	kExitTask();
 }
 static void kTestRandomAllocation( int iArgc, const char** pcArgv )
@@ -743,8 +744,8 @@ static void kTestRandomAllocation( int iArgc, const char** pcArgv )
 	while(1);
 	*/
 	kClearScreen();
-	for( i = 0; i< 1000; i++){
-		kCreateTask(TASK_FLAGS_LOW|TASK_FLAGS_THREAD, (void*)0, 0, (QWORD)kRandomAllocationTask);
+	for( i = 0; i< 100; i++){
+		kCreateTask(TASK_FLAGS_LOWEST|TASK_FLAGS_THREAD, (void*)0, 0, (QWORD)kRandomAllocationTask);
 	}
 }
 

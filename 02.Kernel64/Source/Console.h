@@ -59,8 +59,5 @@ void kPrintf(const char* pcFormatString, ...);
 int kConsolePrintString(const char* pcBuffer);
 void kClearScreen(void);
 BYTE kGetCh(void);
-/*
- * kGetCh 블락된 영역에서 사용유의, 인터럽트가 차단된 체로 태스크 전환이 일어날 수 있고, 예기치 않은 위험을 초래..
- */
 void kPrintStringXY(int iX, int iY, const char* pcString);
 #endif /* __02_KERNEL64_SOURCE_CONSOLE_H_ */
