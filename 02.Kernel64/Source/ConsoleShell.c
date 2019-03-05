@@ -840,7 +840,7 @@ static void kWriteSector( int iArgc, const char** pcArgv )
 	s_dwWriteCount++;
 	pcBuffer = kMalloc(iSectorCount * 512);
 	for(j=0;j<iSectorCount;j++){
-				for(i=0;i<512;i++){
+				for(i=0;i<512/2;i++){
 					*(DWORD*) &(pcBuffer[j*512 + i]) = dwLBA + j;
 					*(DWORD*) &(pcBuffer[j*512 + i + 4]) = s_dwWriteCount;
 				}
@@ -876,5 +876,5 @@ static void kWriteSector( int iArgc, const char** pcArgv )
 		kPrintf("\n");
 
 	}
-	kFree(pcBuffer);
+	//kFree(pcBuffer);
 }
