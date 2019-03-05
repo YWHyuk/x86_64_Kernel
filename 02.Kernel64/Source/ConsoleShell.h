@@ -57,7 +57,9 @@ void kShowDynamicMemoryInformation( int iArgc, const char** pcArgv );
 static void kTestRandomAllocation( int iArgc, const char** pcArgv );
 static void kRandomAllocationTask( void );
 static void kTestRandomAllocation( int iArgc, const char** pcArgv );
-
+static void kShowHDDInformation( int iArgc, const char** pcArgv );
+static void kReadSector( int iArgc, const char** pcArgv );
+static void kWriteSector( int iArgc, const char** pcArgv );
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex);
 QWORD kRandom( void );
 static void kDropCharactorThread(void);

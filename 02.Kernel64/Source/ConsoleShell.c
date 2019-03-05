@@ -14,6 +14,7 @@
 #include "ISR.h"
 #include "Synchronization.h"
 #include "DynamicMemory.h"
+#include "HardDisk.h"
 
 SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"help", "Show Help",kHelp},
@@ -38,7 +39,10 @@ SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"testpie","Test PIE Calculation",kTestPIE},
 		{"dynamicmeminfo","Show Dynamic Memory Information",kShowDynamicMemoryInformation},
 		{"testranalloc","Test Random Allocation & Free",kTestRandomAllocation},
-		{"garbagecollect","",garbage_collect}
+		{"garbagecollect","",garbage_collect},
+		{"hddinfo","Show HDD Information",kShowHDDInformation},
+		{"readsector","Read HDD Sector, ex)readsector 0(LBA) 10(count)",kReadSector},
+		{"writesecotr","Write HDD Sector, ex)writesector 0(LBA) 10(count)",kWriteSector}
 };
 void kStartConsoleShell(void){
 	char vcCommandBuffer[CONSOLESHELL_MAXCOMMANDBUFFERCOUNT];
@@ -748,4 +752,129 @@ static void kTestRandomAllocation( int iArgc, const char** pcArgv )
 		kCreateTask(TASK_FLAGS_LOWEST|TASK_FLAGS_THREAD, (void*)0, 0, (QWORD)kRandomAllocationTask);
 	}
 }
+static void kShowHDDInformation( int iArgc, const char** pcArgv )
+{
+	HDDINFORMATION stHDD;
+	char vcBuffer[ 100 ];
 
+	if(kReadHDDInformation(TRUE, TRUE, &stHDD) == FALSE){
+		kPrintf("HDD Information Read Fail\n");
+		return;
+	}
+	kPrintf("============== Primary Master HDD Information ===================\n");
+	kMemCpy(vcBuffer, stHDD.vwModelNumber, sizeof(stHDD.vwModelNumber));
+	vcBuffer[sizeof(stHDD.vwModelNumber)-1] = '\0';
+	kPrintf("Model Number:\t %s\n",vcBuffer);
+
+	kMemCpy(vcBuffer, stHDD.vwSerialNumber, sizeof(stHDD.vwSerialNumber));
+	vcBuffer[sizeof(stHDD.vwSerialNumber)-1] = '\0';
+	kPrintf("Serial Number:\t %s\n",vcBuffer);
+
+	kPrintf("Head Count:\t %d\n",stHDD.wNumberOfHead);
+	kPrintf("Cylinder Count:\t %d\n",stHDD.wNumberOfCylinder);
+	kPrintf("Sector Count:\t %d\n",stHDD.wNumberOfSectorPerCylinder);
+
+	kPrintf("Total Sector:\t %d Sector, %dMB\n",stHDD.dwTotalSector, stHDD.dwTotalSector>>11);
+
+}
+static void kReadSector( int iArgc, const char** pcArgv )
+{
+	DWORD dwLBA;
+	BOOL bExit;
+	int iSectorCount;
+	char* pcBuffer;
+	int i,j;
+	BYTE bData;
+	if(iArgc != 3 ){
+		kPrintf("%s\n","Wrong Parmeter..");
+		return;
+	}
+	kAToI(pcArgv[1], 10, &dwLBA);
+	kAToI(pcArgv[2], 10, &iSectorCount);
+
+	pcBuffer = kMalloc(iSectorCount * 512);
+	if(kReadHDDSector(TRUE, TRUE , dwLBA, iSectorCount, pcBuffer)==iSectorCount){
+		kPrintf("LBA [%d], [%d] Sector Read Success",dwLBA,iSectorCount);
+		for(j=0;j<iSectorCount;j++){
+			for(i=0;i<512;i++){
+				if(!((j==0)&&(i==0))&&((i%256)==0)){
+					kPrintf("\nPress any Key to continue...");
+					if(kGetCh() == 'q'){
+						bExit=TRUE;
+						break;
+					}
+
+				}
+				if((i%16)==0)
+					kPrintf("\n[LBA:%d, offeset:%d]\t ",dwLBA+j,i);
+				bData = pcBuffer[j*512+i] &0xFF;
+				if(bData<16)
+					kPrintf("0");
+				kPrintf("%X ",bData);
+			}
+			if(bExit == TRUE){
+				break;
+			}
+		}
+		kPrintf("\n");
+
+	}else
+		kPrintf("Read Fail\n");
+	kFree(pcBuffer);
+}
+static void kWriteSector( int iArgc, const char** pcArgv )
+{
+	DWORD dwLBA;
+	BOOL bExit;
+	int iSectorCount;
+	char* pcBuffer;
+	int i,j;
+	BYTE bData;
+	static DWORD s_dwWriteCount = 0;
+	if(iArgc != 3 ){
+		kPrintf("%s\n","Wrong Parmeter..");
+		return;
+	}
+	kAToI(pcArgv[1], 10, &dwLBA);
+	kAToI(pcArgv[2], 10, &iSectorCount);
+	s_dwWriteCount++;
+	pcBuffer = kMalloc(iSectorCount * 512);
+	for(j=0;j<iSectorCount;j++){
+				for(i=0;i<512;i++){
+					*(DWORD*) &(pcBuffer[j*512 + i]) = dwLBA + j;
+					*(DWORD*) &(pcBuffer[j*512 + i + 4]) = s_dwWriteCount;
+				}
+	}
+	if(kWriteHDDSector(TRUE, TRUE, dwLBA, iSectorCount, pcBuffer)!=iSectorCount){
+		kPrintf("write Fail\n");
+		kFree(pcBuffer);
+		return;
+	}
+	if(kReadHDDSector(TRUE, TRUE , dwLBA, iSectorCount, pcBuffer)==iSectorCount){
+		kPrintf("LBA [%d], [%d] Sector Read Success",dwLBA,iSectorCount);
+		for(j=0;j<iSectorCount;j++){
+			for(i=0;i<512;i++){
+				if(!((j==0)&&(i==0))&&((i%256)==0)){
+					kPrintf("\nPress any Key to continue...");
+					if(kGetCh() == 'q'){
+						bExit=TRUE;
+						break;
+					}
+
+				}
+				if((i%16)==0)
+					kPrintf("\n[LBA:%d, offeset:%d]\t ",dwLBA+j,i);
+				bData = pcBuffer[j*512+i] &0xFF;
+				if(bData<16)
+					kPrintf("0");
+				kPrintf("%X ",bData);
+			}
+			if(bExit == TRUE){
+				break;
+			}
+		}
+		kPrintf("\n");
+
+	}
+	kFree(pcBuffer);
+}

@@ -10,7 +10,7 @@ void kInitializeDynamicMemory()
 {
 	FREECHUNK* pstFreeChunk = (FREECHUNK*) DYNAMICMEMORY_START_ADDRESS;
 	pstFreeChunk->qwMagic = CHUNK_TYPE_FREE;
-	pstFreeChunk->qwSize =0x100000 * 47;
+	pstFreeChunk->qwSize = DYNAMICMEMORY_SIZE;
 	InitializeLinkedListManger(&(gs_stChunkManager.Chunk_LinkedListManager));
 	InitializeLinkedListManger(&(gs_stChunkManager.Free_Chunk_LinkedListManager));
 	push_front(&(gs_stChunkManager.Chunk_LinkedListManager), &(pstFreeChunk->Chunk_LinkestList));
@@ -194,11 +194,6 @@ void garbage_collect(){
 			continue;
 			//병합
 		}
-		//병합 안된 경우라도 갱신
-		if(pstCurrentNode->qwMagic == CHUNK_TYPE_UNREADY)
-			pstCurrentNode->qwMagic = CHUNK_TYPE_FREE;
-		if(pstNextNode->qwMagic == CHUNK_TYPE_UNREADY)
-			pstNextNode->qwMagic = CHUNK_TYPE_FREE;
 		pstLinkedList = get_next_node(pstLinkedList);
 	}
 	kUnLockForSystemData(bPrevious);

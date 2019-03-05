@@ -7,6 +7,8 @@
 #include "ConsoleShell.h"
 #include "Task.h"
 #include "Pit.h"
+#include "HardDisk.h"
+
 void Main(void){
 		int iCursorX, iCursorY;
 		kInitializeConsole(0, 10);
@@ -19,35 +21,35 @@ void Main(void){
 	    kPrintf("GDT Initialize And Switch For IA-32e Mode...\n");
 	    kInitializeGDTTableAndTSS();
 	    kLoadGDTR(GDTR_STARTADDRESS);
-	    kPrintStringXY(45, iCursorY++, "[pass]");
+	    kPrintStringXY(45, iCursorY++, "[Pass]");
 
 	    kPrintf("TSS Segment Load...\n" );
 		kLoadTR(GDT_TSSSEGMENT);
-		kPrintStringXY(45, iCursorY++, "[pass]");
+		kPrintStringXY(45, iCursorY++, "[Pass]");
 
 	    kPrintf("IDT Initialize...\n" );
 	    kInitializeIDTTables();
 	    kLoadIDTR(IDTR_STARTADDRESS);
-	    kPrintStringXY(45, iCursorY++, "[pass]");
+	    kPrintStringXY(45, iCursorY++, "[Pass]");
 
 	    kPrintf("Total RAM Size Check...");
 	    kCheckTotalRAMSize();
 	    kGetCursor(&iCursorX, &iCursorY);
 	    kSetCursor(45, iCursorY++);
-	    kPrintf("[pass], Size = %d MB\n",kGetTotalRAMSize());
+	    kPrintf("[Pass], Size = %d MB\n",kGetTotalRAMSize());
 
 	    kPrintf("TCB Pool And Scheduler Initialize...\n");
 	    kInitializeTCBPool();
 	    kInitializeScheduler();
 	    kInitializePIT(MSTOCOUNT(1), 1);
-	    kPrintStringXY(45, iCursorY++, "[pass]");
+	    kPrintStringXY(45, iCursorY++, "[Pass]");
 
 	    kPrintf("Dynamic Memory Initialize...\n");
 	    kInitializeDynamicMemory();
-	    kPrintStringXY(45, iCursorY++, "[pass]");
+	    kPrintStringXY(45, iCursorY++, "[Pass]");
 
 	    kPrintf("Keyboard Activate\n");
-	    kPrintStringXY(45, iCursorY++, "[pass]");
+	    kPrintStringXY(45, iCursorY++, "[Pass]");
 		//breakfunc();
 	    // 키보드를 활성화
 	    if( kInitializeKeyboard() == TRUE )
@@ -64,7 +66,14 @@ void Main(void){
 	    kInitializePIC();
 	    kMaskPICInterrupt(0);
 	    kEnableInterrupt();
-	    kPrintStringXY(45, iCursorY++, "[pass]");
+	    kPrintStringXY(45, iCursorY++, "[Pass]");
+
+	    kPrintf("HDD Initialize...\n");
+	    if(kInitializeHDD()==TRUE)
+	    	kPrintStringXY(45, iCursorY++, "[Pass]");
+	    else
+	    	kPrintStringXY(45, iCursorY++, "[Fail]");
+
 	    kCreateTask(TASK_FLAGS_LOWEST|TASK_FLAGS_IDLE|TASK_FLAGS_THREAD|TASK_FLAGS_SYSTEM,\
 	    		0, 0, (QWORD)kIdleTask);
 	    kStartConsoleShell();

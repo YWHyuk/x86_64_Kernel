@@ -19,7 +19,7 @@ void kLock(MUTEX* pstMutex){
 		}
 		while(kTestAndSet(&(pstMutex->bLockFlag), 0, 1)==FALSE){
 			kSchedule();
-			kPrintf("task [0x%q] In Mutex: Im waiting..\n",kGetRunningTCB()->stLinkedList.Node_ID);
+			//kPrintf("task [0x%q] In Mutex: Im waiting..\n",kGetRunningTCB()->stLinkedList.Node_ID);
 		}
 	}
 	pstMutex->qwTaskID = (kGetRunningTCB())->stLinkedList.Node_ID;

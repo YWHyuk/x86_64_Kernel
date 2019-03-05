@@ -195,7 +195,7 @@ void kISRGeneralProtection( void ){//QWORD qwErrCode ){
 }
 void kISRPageFault( void ){//QWORD qwErrCode ){
 	kSAVECONTEXT();
-	kCommonExceptionHandler(14, 0);//*(&qwErrCode - 0x01));
+	kCommonExceptionHandler(14,0);//*(&qwErrCode - 0x01));
 	kLOADCONTEXT();
 	__asm__ __volatile__(
 			"add $8,%rsp \n\t"
@@ -204,7 +204,7 @@ void kISRPageFault( void ){//QWORD qwErrCode ){
 }
 void kISR15( void ){
 	kSAVECONTEXT();
-	kCommonExceptionHandler(15, 0);
+	kCommonExceptionHandler(15,0);
 	kLOADCONTEXT();
 	__asm__ __volatile__(
 			"iretq"
@@ -367,7 +367,7 @@ void kISRCoprocessor( void ){
 }
 void kISRHDD1( void ){
 	kSAVECONTEXT();
-	kCommonInterruptHandler(46);
+	kHDDHandler(46);
 	kLOADCONTEXT();
 	__asm__ __volatile__(
 			"iretq"
@@ -375,7 +375,7 @@ void kISRHDD1( void ){
 }
 void kISRHDD2( void ){
 	kSAVECONTEXT();
-	kCommonInterruptHandler(47);
+	kHDDHandler(47);
 	kLOADCONTEXT();
 	__asm__ __volatile__(
 			"iretq"
