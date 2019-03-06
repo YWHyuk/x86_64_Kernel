@@ -8,6 +8,7 @@
 #include "Task.h"
 #include "Pit.h"
 #include "HardDisk.h"
+#include "FileSystem.h"
 
 void Main(void){
 		int iCursorX, iCursorY;
@@ -73,6 +74,12 @@ void Main(void){
 	    	kPrintStringXY(45, iCursorY++, "[Pass]");
 	    else
 	    	kPrintStringXY(45, iCursorY++, "[Fail]");
+
+	    kPrintf("File System Initialize...\n");
+	 	    if(kInitializeFileSystem()==TRUE)
+	 	    	kPrintStringXY(45, iCursorY++, "[Pass]");
+	 	    else
+	 	    	kPrintStringXY(45, iCursorY++, "[Fail]");
 
 	    kCreateTask(TASK_FLAGS_LOWEST|TASK_FLAGS_IDLE|TASK_FLAGS_THREAD|TASK_FLAGS_SYSTEM,\
 	    		0, 0, (QWORD)kIdleTask);

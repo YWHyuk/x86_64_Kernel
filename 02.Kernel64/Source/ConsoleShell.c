@@ -15,7 +15,7 @@
 #include "Synchronization.h"
 #include "DynamicMemory.h"
 #include "HardDisk.h"
-
+#include "FileSystem.h"
 SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"help", "Show Help",kHelp},
 		{"cls", "Clear the Screen", kCls},
@@ -42,7 +42,13 @@ SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"garbagecollect","",garbage_collect},
 		{"hddinfo","Show HDD Information",kShowHDDInformation},
 		{"readsector","Read HDD Sector, ex)readsector 0(LBA) 10(count)",kReadSector},
-		{"writesecotr","Write HDD Sector, ex)writesector 0(LBA) 10(count)",kWriteSector}
+		{"writesecotr","Write HDD Sector, ex)writesector 0(LBA) 10(count)",kWriteSector},
+		{"mounthdd","Mount HDD",kMountHDD},
+		{"formathdd","Format HDD",kFormatHDD},
+		{"filesysteminfo","Show File System Information",kShowFileSystemInformation},
+		{"createfile","Create File, Ex)createfile a.txt",kCreateFileInRootDirectory},
+		{"deletefile","Delete File, Ex)deletefile a.txt",kDeleteFileInRootDirectory},
+		{"dir","Show Directory",kShowRootDirectory}
 };
 void kStartConsoleShell(void){
 	char vcCommandBuffer[CONSOLESHELL_MAXCOMMANDBUFFERCOUNT];
@@ -779,9 +785,9 @@ static void kShowHDDInformation( int iArgc, const char** pcArgv )
 }
 static void kReadSector( int iArgc, const char** pcArgv )
 {
-	DWORD dwLBA;
+	QWORD dwLBA;
 	BOOL bExit;
-	int iSectorCount;
+	QWORD iSectorCount;
 	char* pcBuffer;
 	int i,j;
 	BYTE bData;
@@ -824,9 +830,9 @@ static void kReadSector( int iArgc, const char** pcArgv )
 }
 static void kWriteSector( int iArgc, const char** pcArgv )
 {
-	DWORD dwLBA;
+	QWORD dwLBA;
 	BOOL bExit;
-	int iSectorCount;
+	QWORD iSectorCount;
 	char* pcBuffer;
 	int i,j;
 	BYTE bData;
@@ -877,4 +883,154 @@ static void kWriteSector( int iArgc, const char** pcArgv )
 
 	}
 	//kFree(pcBuffer);
+}
+static void kMountHDD( int iArgc, const char** pcArgv )
+{
+	if(kMount() ==FALSE){
+		kPrintf("HDD Mount Fail...\n");
+		return;
+	}
+	kPrintf("HDD Mount Success\n");
+}
+static void kFormatHDD( int iArgc, const char** pcArgv )
+{
+	if(kFormat()==FALSE){
+		kPrintf("HDD Format Fail...\n");
+		return;
+	}
+	kPrintf("HDD Format Success\n");
+}
+static void kShowFileSystemInformation( int iArgc, const char** pcArgv )
+{
+	FILESYSTEMMANAGER* pstFSInformation;
+	pstFSInformation = kMalloc(sizeof(FILESYSTEMMANAGER));
+	kGetFileSystemInformation(pstFSInformation);
+	kPrintf("======================== File System Information ====================\n");
+	kPrintf("Mounted:\t\t\t\t %d\n",pstFSInformation->bMounted);
+	kPrintf("Reserved Sector Count: \t\t\t %d Sector\n",pstFSInformation->dwReservedSectorCount);
+	kPrintf("Cluster Link Table Start Address:\t %d Sector\n",pstFSInformation->dwClusterLinkAreaStartAddress);
+	kPrintf("Data Area Start Address:\t\t %d Sector\n",pstFSInformation->dwDataAreaStartAddress);
+	kPrintf("Total Cluster Count:\t\t\t %d Cluster\n",pstFSInformation->dwTotalClusterCount);
+	kFree(pstFSInformation);
+}
+static void kCreateFileInRootDirectory( int iArgc, const char** pcArgv )
+{
+	int iLength, i;
+	DWORD dwCluster;
+	DIRECTORYENTRY stEntry;
+	if(iArgc != 2 ){
+		kPrintf("%s\n","Wrong Parmeter..");
+		return;
+	}
+	iLength = kStrlen(pcArgv[1]);
+	if((iLength > sizeof(stEntry.vcFileName) )|| (iLength == 0)){
+		kPrintf("Too Long name or Too Short File name\n");
+		return;
+	}
+	if(kFindDirectoryEntry(pcArgv[1], &stEntry)!=-1){
+		kPrintf("Existing name\n");
+		return;
+	}
+	dwCluster = kFindFreeCluster();
+	kPrintf("dwCluster:%d\n",dwCluster);
+	if((dwCluster == FILESYSTEM_LASTCLUSTER)||(kSetClusterLinkData(dwCluster, FILESYSTEM_LASTCLUSTER)==FALSE)){
+		kPrintf("Cluster Allocation Fail\n");
+		return;
+	}
+	i = kFindFreeDirectoryEntry();
+	if(i == -1){
+		kSetClusterLinkData(dwCluster, FILESYSTEM_FREECLUSTER);
+		kPrintf("Directory Entry is Full\n");
+		return;
+	}
+	kMemCpy(&stEntry.vcFileName, pcArgv[1], iLength+1);
+	stEntry.dwStartClusterIndex = dwCluster;
+	stEntry.dwFileSize = 0;
+
+	if(kSetDirectoryEntryData(i, &stEntry)==FALSE){
+		kSetClusterLinkData(dwCluster, FILESYSTEM_FREECLUSTER);
+		kPrintf("Directory Entry set Fail\n");
+	}
+	kPrintf("File Create success\n");
+}
+static void kDeleteFileInRootDirectory( int iArgc, const char** pcArgv )
+{
+	int iLength, iOffset;
+	DIRECTORYENTRY stEntry;
+	if(iArgc != 2 ){
+		kPrintf("%s\n","Wrong Parmeter..");
+		return;
+	}
+	iLength = kStrlen(pcArgv[1]);
+	if((iLength > sizeof(stEntry.vcFileName) )|| (iLength == 0)){
+		kPrintf("Too Long name or Too Short File name\n");
+		return;
+	}
+	iOffset = kFindDirectoryEntry(pcArgv[1], &stEntry);
+	if(iOffset == -1){
+		kPrintf("File not found...\n");
+		return;
+	}
+	if(kSetClusterLinkData(stEntry.dwStartClusterIndex, FILESYSTEM_FREECLUSTER)==FALSE){
+		kPrintf("Cluser Free Fail\n");
+		return;
+	}
+	kMemSet(&stEntry, 0, sizeof(stEntry));
+	if(kSetDirectoryEntryData(iOffset, &stEntry)==FALSE){
+		kPrintf("Root Directory Update Fail\n");
+		return;
+	}
+	kPrintf("File Delete Success\n");
+}
+static void kShowRootDirectory( int iArgc, const char** pcArgv )
+{
+	BYTE* pbClusterBuffer;
+	int i,iCount, iTotalCount;
+	DIRECTORYENTRY* pstEntry;
+	char vcBuffer[400];
+	char vcTempValue[50];
+	DWORD dwTotalByte;
+
+	pbClusterBuffer = kMalloc(FILESYSTEM_SECTORSPERCLUSTER * 512);
+	if(kReadCluster(0, pbClusterBuffer)==FALSE){
+		kPrintf("Root Directory Read Fail\n");
+		return;
+	}
+	pstEntry = (DIRECTORYENTRY*) pbClusterBuffer;
+	iTotalCount = 0;
+	dwTotalByte = 0;
+	for(i=0;i<FILESYSTEM_MAXDIRECTORYENTRYCOUNT;i++){
+		if(pstEntry[i].dwStartClusterIndex == 0 ){
+			continue;
+		}
+		iTotalCount++;
+		dwTotalByte += pstEntry[i].dwFileSize;
+	}
+	pstEntry = (DIRECTORYENTRY*)pbClusterBuffer;
+	iCount = 0;
+	for(i=0;i<FILESYSTEM_MAXDIRECTORYENTRYCOUNT;i++){
+		if(pstEntry[i].dwStartClusterIndex == 0)
+			continue;
+		kMemSet(vcBuffer, ' ', sizeof(vcBuffer)-1);
+		vcBuffer[sizeof(vcBuffer)-1]= '\0';
+
+		kMemCpy(vcBuffer, pstEntry[i].vcFileName, kStrlen(pstEntry[i].vcFileName));
+		kSPrintf(vcTempValue, "%d Byte", pstEntry[i].dwFileSize);
+		kMemCpy(vcBuffer + 30, vcTempValue, kStrlen(vcTempValue));
+
+		kSPrintf(vcTempValue, "0x%X cluser",pstEntry[i].dwStartClusterIndex);
+		kMemCpy(vcBuffer + 55, vcTempValue, kStrlen(vcTempValue)+1);
+		kPrintf("     %s\n",vcBuffer);
+
+		if((iCount!=0)&&((iCount %20)==0)){
+			kPrintf("Press any key to continue...('q' is exit): ");
+			if(kGetCh()=='q'){
+				kPrintf("\n");
+				break;
+			}
+		}
+		iCount++;
+	}
+	kPrintf("\t Total File Count: %d\t Total File Size: %d Byte\n",iTotalCount,dwTotalByte);
+	kFree(pbClusterBuffer);
 }

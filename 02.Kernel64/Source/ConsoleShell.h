@@ -60,6 +60,15 @@ static void kTestRandomAllocation( int iArgc, const char** pcArgv );
 static void kShowHDDInformation( int iArgc, const char** pcArgv );
 static void kReadSector( int iArgc, const char** pcArgv );
 static void kWriteSector( int iArgc, const char** pcArgv );
+static void kMountHDD( int iArgc, const char** pcArgv );
+static void kFormatHDD( int iArgc, const char** pcArgv );
+static void kShowFileSystemInformation( int iArgc, const char** pcArgv );
+static void kCreateFileInRootDirectory( int iArgc, const char** pcArgv );
+static void kDeleteFileInRootDirectory( int iArgc, const char** pcArgv );
+static void kShowRootDirectory( int iArgc, const char** pcArgv );
+
+
+
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex);
 QWORD kRandom( void );
 static void kDropCharactorThread(void);
