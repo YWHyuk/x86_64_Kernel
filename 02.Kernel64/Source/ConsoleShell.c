@@ -16,6 +16,7 @@
 #include "DynamicMemory.h"
 #include "HardDisk.h"
 #include "FileSystem.h"
+#include "MPConfigurationTable.h"
 SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"help", "Show Help",kHelp},
 		{"cls", "Clear the Screen", kCls},
@@ -48,7 +49,8 @@ SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"filesysteminfo","Show File System Information",kShowFileSystemInformation},
 		{"createfile","Create File, Ex)createfile a.txt",kCreateFileInRootDirectory},
 		{"deletefile","Delete File, Ex)deletefile a.txt",kDeleteFileInRootDirectory},
-		{"dir","Show Directory",kShowRootDirectory}
+		{"dir","Show Directory",kShowRootDirectory},
+		{"showmpinfo","Show MP Configuration Table Information",kShowMPConfigurationTable}
 };
 void kStartConsoleShell(void){
 	char vcCommandBuffer[CONSOLESHELL_MAXCOMMANDBUFFERCOUNT];
@@ -1033,4 +1035,8 @@ static void kShowRootDirectory( int iArgc, const char** pcArgv )
 	}
 	kPrintf("\t Total File Count: %d\t Total File Size: %d Byte\n",iTotalCount,dwTotalByte);
 	kFree(pbClusterBuffer);
+}
+static void kShowMPConfigurationTable( int iArgc, const char** pcArgv )
+{
+	kPrintMPConfigurationTable();
 }
