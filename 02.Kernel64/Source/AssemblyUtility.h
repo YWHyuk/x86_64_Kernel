@@ -25,4 +25,5 @@ void kClearTS( void );
 //pbDestination의 값이 bCompare과  같다면 bSource의 값으로 바꾸고 return TRUE
 //아니라면 return FALSE
 BOOL kTestAndSet( volatile BYTE* pbDestination, BYTE bCompare, BYTE bSource);
+void kEnableGlobalLocalAPIC( void );
 #endif

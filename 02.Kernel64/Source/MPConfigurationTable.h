@@ -122,4 +122,7 @@ BOOL kAnalysisMPConfigurationTable(void);
 MPCONFIGURATIONMANAGER* kGetMPConfigurationManager(void);
 void kPrintMPConfigurationTable( void );
 int kGetProcessorCount(void);
+
+static MPCONFIGURATIONMANAGER gs_stMPConfigurationManger;
+
 #endif /* __02_KERNEL64_SOURCE_MPCONFIGURATIONTABLE_H_ */

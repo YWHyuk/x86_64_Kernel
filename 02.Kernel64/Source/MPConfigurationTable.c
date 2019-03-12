@@ -5,7 +5,7 @@
  *      Author: DEWH
  */
 #include "MPConfigurationTable.h"
-static MPCONFIGURATIONMANAGER gs_stMPConfigurationManger;
+
 BOOL kFindMPFloatingPointerAddress(QWORD* pstAddress)
 {
 	QWORD qwEBDAddress;

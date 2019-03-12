@@ -8,6 +8,7 @@ global kSoftInterrupt,kReadTSC
 global kContextSwitch, kHlt;
 global kTestAndSet;
 global kInitializeFPU,kSaveFPUContext,kLoadFPUContext,kSetTS,kClearTS;
+global kEnableGlobalLocalAPIC;
 ; BYTE kInPortByte(WORD wPort);
 ;
 kInPortByte:
@@ -215,4 +216,16 @@ kTestAndSet:
 	ret
 .SUCCESS:
 	mov		rax, 1; pbDestination의 값은 bSource 값으로 변화
+	ret
+kEnableGlobalLocalAPIC:
+	push rax
+	push rcx
+	push rdx
+	mov rcx, 127
+	rdmsr
+	or eax,0x0800
+	wrmsr
+	pop rdx
+	pop rcx
+	pop rax
 	ret

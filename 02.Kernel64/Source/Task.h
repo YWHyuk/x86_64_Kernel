@@ -109,6 +109,13 @@ typedef struct kTaskControlBlockStruct{
 	//FPU AREA
 	FPUCONTEXT* pstFPUContext;
 	BOOL bFPUUsed;
+	/* 앞으로 구현해야 할 부분 */
+
+	/* current 디렉토리, 파일 */
+	/* waiting for descriptor */
+	/* descriptor table */
+	/* uid gid */
+	/* page table */
 }TCB;
 
 
