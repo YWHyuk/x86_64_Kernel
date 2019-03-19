@@ -9,9 +9,19 @@
 #include "Pit.h"
 #include "HardDisk.h"
 #include "FileSystem.h"
-
+#include "MultiProcessor.h"
+static MUTEX consoleMutex;
+void MainForApplicationProcessor( void );
 void Main(void){
 		int iCursorX, iCursorY;
+
+		/* AP라면... */
+		if(*((BYTE*) BOOTSTRAPPROCESSOR_FLAGADDRESS) == 0){
+			MainForApplicationProcessor();
+		}
+		/* BP라면... */
+		*((BYTE*) BOOTSTRAPPROCESSOR_FLAGADDRESS) = 0;
+		kInitializeMutex(&consoleMutex);
 		kInitializeConsole(0, 10);
 
 	    kPrintf("Switch To IA-32e Mode Success...\n" );
@@ -86,4 +96,21 @@ void Main(void){
 	    kStartConsoleShell();
 LOOP:
 	while(TRUE);
+}
+void MainForApplicationProcessor( void )
+{
+	QWORD qwTickCount;
+	kLoadGDTR(GDTR_STARTADDRESS);
+	kLoadTR(GDT_TSSSEGMENT + (kGetAPICID() * sizeof(GDTENTRY16)));
+
+	kLoadIDTR(IDTR_STARTADDRESS);
+	char buffer[200];
+	qwTickCount = kGetTickCount();
+	while(1){
+		if(kGetTickCount() - qwTickCount > 1000){
+			qwTickCount = kGetTickCount();
+			kSPrintf(buffer, "Application Processor[APIC ID: %d] Is Activated\n",kGetAPICID());
+			kPrintStringXY(0, kGetAPICID(), buffer);
+		}
+	}
 }

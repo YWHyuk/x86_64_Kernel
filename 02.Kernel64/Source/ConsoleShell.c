@@ -50,7 +50,8 @@ SHELLCOMMANDENTRY gs_vstCommandTable[]={
 		{"createfile","Create File, Ex)createfile a.txt",kCreateFileInRootDirectory},
 		{"deletefile","Delete File, Ex)deletefile a.txt",kDeleteFileInRootDirectory},
 		{"dir","Show Directory",kShowRootDirectory},
-		{"showmpinfo","Show MP Configuration Table Information",kShowMPConfigurationTable}
+		{"showmpinfo","Show MP Configuration Table Information",kShowMPConfigurationTable},
+		{"startap","start application processor", kStartApplicationProcessor}
 };
 void kStartConsoleShell(void){
 	char vcCommandBuffer[CONSOLESHELL_MAXCOMMANDBUFFERCOUNT];
@@ -1039,4 +1040,14 @@ static void kShowRootDirectory( int iArgc, const char** pcArgv )
 static void kShowMPConfigurationTable( int iArgc, const char** pcArgv )
 {
 	kPrintMPConfigurationTable();
+}
+static void kStartApplicationProcessor( int iArgc, const char** pcArgv )
+{
+	if(kStartUpApplicationProcessor() == FALSE){
+		kPrintf("Application Processor Start Fail\n");
+		return;
+	}
+	kPrintf("Application Processor Start Succes\n");
+
+	kPrintf("Bootstrap Processor[APIC ID: %d] Start Application Processor\n",kGetAPICID());
 }

@@ -8,6 +8,8 @@
 #ifndef __DESCRIPTOR_H__
 #define __DESCRIPTOR_H__
 #include "Types.h"
+#include "MultiProcessor.h"
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 //                            					GDT											//
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,11 +79,11 @@
 
 #define GDTR_STARTADDRESS	0x142000
 #define GDT_MAXENTRY8COUNT	3
-#define GDT_MAXENTRY16COUNT 1
+#define GDT_MAXENTRY16COUNT (MAXPROCESSORCOUNT)
 
 #define GDT_TABLESIZE (sizeof( GDTENTRY8 ) * GDT_MAXENTRY8COUNT + \
 		sizeof( GDTENTRY16 ) * GDT_MAXENTRY16COUNT )
-#define TSS_SEGMENTSIZE (sizeof(TSSSEGMENT))
+#define TSS_SEGMENTSIZE (sizeof(TSSSEGMENT) * MAXPROCESSORCOUNT)
 //////////////////////////////////////////////////////////////////////////////////////////////
 //                            					IDT											//
 //////////////////////////////////////////////////////////////////////////////////////////////

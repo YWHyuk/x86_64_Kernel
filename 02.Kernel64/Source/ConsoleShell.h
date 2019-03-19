@@ -67,7 +67,7 @@ static void kCreateFileInRootDirectory( int iArgc, const char** pcArgv );
 static void kDeleteFileInRootDirectory( int iArgc, const char** pcArgv );
 static void kShowRootDirectory( int iArgc, const char** pcArgv );
 static void kShowMPConfigurationTable( int iArgc, const char** pcArgv );
-
+static void kStartApplicationProcessor( int iArgc, const char** pcArgv );
 
 void kAutoComplete(char* vcCommandBuffer, int* iCommandBufferIndex);
 QWORD kRandom( void );

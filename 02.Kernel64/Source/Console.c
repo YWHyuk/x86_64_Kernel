@@ -8,6 +8,7 @@
 #include "Console.h"
 #include "Keyboard.h"
 #include "Utility.h"
+
 CONSOLEMANAGER gs_stConsoleManager={0,};
 void kInitializeConsole(int iX, int iY){
 	kMemSet(&gs_stConsoleManager, 0, sizeof(CONSOLEMANAGER));
@@ -45,7 +46,6 @@ int kConsolePrintString(const char* pcBuffer){
 	int i,j;
 	int iLengh;
 	int iPrintOffset;
-
 	iPrintOffset = gs_stConsoleManager.iCurrentPrintOffset;
 
 	iLengh = kStrlen(pcBuffer);

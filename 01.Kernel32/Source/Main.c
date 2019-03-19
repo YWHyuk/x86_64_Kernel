@@ -9,10 +9,17 @@ void kPrintString( int iX, int iY, const char* pcString);
 BOOL KInitializeKernel64Area(void);
 BOOL KIsMemoryEnough(void);
 void kCopyKernel64ImageTo2Mbyte(void);
+
+#define BOOTSTRAPPROCESSOR_FLAGADDRESS	0x7c09
+
 void Main(void){
 	DWORD i;
 	DWORD dwEAX,dwEBX,dwECX,dwEDX;
 	char vcVendorString[13] ={0,};
+	if(*((BYTE*)BOOTSTRAPPROCESSOR_FLAGADDRESS)==0){
+		kSwitchAndExecute64bitKernel();
+		while(1);
+	}
 	kPrintString(0,3,"C Language Starting...");
 	kPrintString(45,3,"[Pass]");
 	kPrintString(0, 4, "Minimum Memory Size Check...");

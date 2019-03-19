@@ -2,8 +2,9 @@
 [BITS 16]
 SECTION .text
 jmp 	0x07c0:START		;;cs 레지스터에 0x07c0 복사
-TOTALSECTORCOUNT: dw    0x02	;;OS 이미지 섹터 크기
-KERNEL32SECTORCOUNT: dw 0x02 ;
+TOTALSECTORCOUNT: 		dw  0x02	;;OS 이미지 섹터 크기
+KERNEL32SECTORCOUNT:	dw	0x02 ;
+BOOTSTRAPPROCESSOR: 	db 	0x01
 START:						;;나머지 세그먼트 레지스터 세팅
 	mov ax, 0x07c0			;;ds 세그먼트 세팅
 	mov ds, ax 				;;

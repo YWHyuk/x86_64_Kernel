@@ -10,6 +10,8 @@
 #include "Descriptor.h"
 #include "ISR.h"
 #include "Console.h"
+#include "MultiProcessor.h"
+
 void kInitializeGDTTableAndTSS(void){
 	GDTR* pstGDTR;
 	GDTENTRY8* pstEntry;
@@ -21,11 +23,15 @@ void kInitializeGDTTableAndTSS(void){
 	pstGDTR->wLimit= GDT_TABLESIZE-1;
 	pstGDTR->qwBaseAddress=(QWORD)pstEntry;
 
-	pstTSS = (TSSSEGMENT*) (GDT_TABLESIZE + (QWORD)pstEntry);
+	pstTSS = (TSSSEGMENT*) (GDT_TABLESIZE + (QWORD)pstEntry + GDT_TABLESIZE);
 	kSetGDTEntry8(&(pstEntry[0]), 0, 0, 0, 0, 0);
 	kSetGDTEntry8(&(pstEntry[1]), 0, 0xFFFFF, GDT_FLAGS_UPPER_CODE, GDT_FLAGS_LOWER_KERNELCODE, GDT_TYPE_CODE);
 	kSetGDTEntry8(&(pstEntry[2]), 0, 0xFFFFF, GDT_FLAGS_UPPER_DATA, GDT_FLAGS_LOWER_KERNELDATA, GDT_TYPE_DATA);
-	kSetGDTEntry16((GDTENTRY16*)&(pstEntry[3]), (QWORD)pstTSS, sizeof(TSSSEGMENT) -1 , GDT_FLAGS_UPPER_TSS, GDT_FLAGS_LOWER_TSS, GDT_TYPE_TSS);
+
+	for(i = 0; i < MAXPROCESSORCOUNT; i++){
+		kSetGDTEntry16((GDTENTRY16*)&(pstEntry[GDT_MAXENTRY8COUNT + (i*2)]), (QWORD)pstTSS + (i * sizeof(TSSSEGMENT)),\
+				sizeof(TSSSEGMENT) -1 , GDT_FLAGS_UPPER_TSS, GDT_FLAGS_LOWER_TSS, GDT_TYPE_TSS);
+	}
 	kInitializeTSSSegment( pstTSS );
 }
 void kSetGDTEntry8(GDTENTRY8* pstEntry, DWORD dwBaseAddress, DWORD dwLimit,
@@ -50,9 +56,13 @@ void kSetGDTEntry16(GDTENTRY16* pstEntry, QWORD qwBaseAddress, DWORD dwLimit,
 
 }
 void kInitializeTSSSegment( TSSSEGMENT* pstTSS){
-	kMemSet(pstTSS,0,sizeof(TSSSEGMENT));
-	pstTSS->qwIST[0]=IST_STARTADDRESS + IST_SIZE;
-	pstTSS->wIOMapBaseAddress = 0xFFFF;
+	int i;
+	for( i = 0; i < MAXPROCESSORCOUNT; i++){
+		kMemSet(pstTSS,0,sizeof(TSSSEGMENT));
+		pstTSS->qwIST[0]=IST_STARTADDRESS + IST_SIZE - (IST_SIZE / MAXPROCESSORCOUNT * i);
+		pstTSS->wIOMapBaseAddress = 0xFFF;
+		pstTSS++;
+	}
 }
 
 void kInitializeIDTTables(void){
