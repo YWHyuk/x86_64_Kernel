@@ -28,4 +28,7 @@ BOOL kIsPrintable(char cKey);
 QWORD kGetTickCount(void);
 extern volatile QWORD g_qwTickCount;
 void kSleep(QWORD qwMillisecond);
+
+#define MIN(x,y) (((x) < (y))?(x):(y))
+#define MAX(x,y) (((x) > (y))?(x):(y))
 #endif /* __UTILITY_H__ */

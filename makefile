@@ -24,7 +24,7 @@ Kernel32:
 	
 Kernel64:
 	@echo
-	@echo ============================ Build Kernel32 ====================================
+	@echo ============================ Build Kernel32 ==================================== 
 	@echo 
 	
 	make -C 02.Kernel64
@@ -44,8 +44,7 @@ Disk.img: 00.BootLoader/BootLoader.bin 01.Kernel32/Kernel32.bin 02.Kernel64/Kern
 	@echo ============================ All Build Complete ===================================
 	@echo
 	
-	@echo ============================== Sending to VM =======================================
-	scp -P 2222 Disk.img 127.0.0.1:/home/dewh/disk_dir/disk.img
+	@echo ============================== Sending to VM ==========	=============================
 	@echo ============================== Sending to VM =======================================
 	
 	

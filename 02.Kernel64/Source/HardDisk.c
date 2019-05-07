@@ -39,17 +39,19 @@ BOOL kReadHDDInformation(BOOL bPrimary, BOOL bMaster, HDDINFORMATION* pstHDDInfo
 		wPortBase = HDD_PORT_PRIMARYBASE;
 	else
 		wPortBase = HDD_PORT_SECONDARYBASE;
-	if(bMaster == TRUE)
-		bDriveFlag = HDD_DRIVEANDHEAD_LBA;
-	else
-		bDriveFlag = HDD_DRIVEANDHEAD_LBA | HDD_DRIVEANDHEAD_SLAVE;
 	//임계점 시작
 	kLock(&(gs_stHDDManager.stMutex));
 	if(kWaitForHDDNoBusy(bPrimary)==FALSE){
 		kUnlock(&(gs_stHDDManager.stMutex));
 		return FALSE;
 	}
+	if(bMaster == TRUE)
+		bDriveFlag = HDD_DRIVEANDHEAD_LBA;
+	else
+		bDriveFlag = HDD_DRIVEANDHEAD_LBA | HDD_DRIVEANDHEAD_SLAVE;
+
 	kOutPortByte(wPortBase + HDD_PORT_INDEX_DRIVEHEAD, bDriveFlag);
+
 	if(kWaitForHDDReady(bPrimary)==FALSE){
 		kUnlock(&(gs_stHDDManager.stMutex));
 		return FALSE;
@@ -89,17 +91,14 @@ int kReadHDDSector(BOOL bPrimary, BOOL bMaster, DWORD dwLBA, int iSectorCount, c
 	long lReadCount = 0;
 	if((gs_stHDDManager.bHDDDetected == FALSE) ||\
 			(iSectorCount > 256) || ((iSectorCount <= 0)) ||\
-			(dwLBA + iSectorCount) >= gs_stHDDManager.stHDDInformation.dwTotalSector){
+			((dwLBA + iSectorCount) >= gs_stHDDManager.stHDDInformation.dwTotalSector)){
 		return 0;
 	}
 	if(bPrimary == TRUE)
 		wPortBase = HDD_PORT_PRIMARYBASE;
 	else
 		wPortBase = HDD_PORT_SECONDARYBASE;
-	if(bMaster == TRUE)
-		bDriveFlag = HDD_DRIVEANDHEAD_LBA;
-	else
-		bDriveFlag = HDD_DRIVEANDHEAD_LBA | HDD_DRIVEANDHEAD_SLAVE;
+
 	kLock(&(gs_stHDDManager.stMutex));
 	if(kWaitForHDDNoBusy(bPrimary)==FALSE){
 		kUnlock(&(gs_stHDDManager.stMutex));
@@ -109,7 +108,12 @@ int kReadHDDSector(BOOL bPrimary, BOOL bMaster, DWORD dwLBA, int iSectorCount, c
 	kOutPortByte(wPortBase + HDD_PORT_INDEX_SECTORNUMBER, dwLBA);
 	kOutPortByte(wPortBase + HDD_PORT_INDEX_CYLINDERLSB, dwLBA >> 8);
 	kOutPortByte(wPortBase + HDD_PORT_INDEX_CYLINDERMSB, dwLBA >> 16);
-	kOutPortByte(wPortBase + HDD_PORT_INDEX_DRIVEHEAD, bDriveFlag| ((dwLBA >> 24) & 0xFF));
+	if(bMaster == TRUE)
+		bDriveFlag = HDD_DRIVEANDHEAD_LBA;
+	else
+		bDriveFlag = HDD_DRIVEANDHEAD_LBA | HDD_DRIVEANDHEAD_SLAVE;
+	kOutPortByte(wPortBase+HDD_PORT_INDEX_DRIVEHEAD, bDriveFlag|((dwLBA>>24)&0xF));
+
 	//send command
 	if(kWaitForHDDReady(bPrimary)==FALSE){
 		kUnlock(&(gs_stHDDManager.stMutex));
@@ -129,20 +133,17 @@ int kReadHDDSector(BOOL bPrimary, BOOL bMaster, DWORD dwLBA, int iSectorCount, c
 			bWait = kWaitForHDDInterrupt(bPrimary);
 			kSetHDDInterruptFlag(bPrimary, FALSE);
 			if(bWait == FALSE){
-				kPrintf("Interrupt Not Occur...\n");
+				kPrintf("Read Interrupt Not Occur...\n");
 				kUnlock(&(gs_stHDDManager.stMutex));
 				return FALSE;
 			}
-
 		}
 		for(j = 0; j < 512 / 2; j++ ){
 			((WORD*)pcBuffer)[lReadCount++] = kInPortWord(wPortBase + HDD_PORT_INDEX_DATA);
 		}
-
 	}
 	kUnlock(&(gs_stHDDManager.stMutex));
 	return i;
-
 }
 int kWriteHDDSector(BOOL bPrimary, BOOL bMaster, DWORD dwLBA, int iSectorCount, char* pcBuffer)
 {
@@ -160,27 +161,36 @@ int kWriteHDDSector(BOOL bPrimary, BOOL bMaster, DWORD dwLBA, int iSectorCount, 
 		wPortBase = HDD_PORT_PRIMARYBASE;
 	else
 		wPortBase = HDD_PORT_SECONDARYBASE;
-	if(bMaster == TRUE)
-		bDriveFlag = HDD_DRIVEANDHEAD_LBA;
-	else
-		bDriveFlag = HDD_DRIVEANDHEAD_LBA | HDD_DRIVEANDHEAD_SLAVE;
-	kLock(&(gs_stHDDManager.stMutex));
 	if(kWaitForHDDNoBusy(bPrimary)==FALSE){
-		kUnlock(&(gs_stHDDManager.stMutex));
 		return FALSE;
 	}
+	kLock(&(gs_stHDDManager.stMutex));
 	kOutPortByte(wPortBase + HDD_PORT_INDEX_SECTORCOUNT, iSectorCount);
 	kOutPortByte(wPortBase + HDD_PORT_INDEX_SECTORNUMBER, dwLBA);
 	kOutPortByte(wPortBase + HDD_PORT_INDEX_CYLINDERLSB, dwLBA >> 8);
 	kOutPortByte(wPortBase + HDD_PORT_INDEX_CYLINDERMSB, dwLBA >> 16);
-	kOutPortByte(wPortBase + HDD_PORT_INDEX_DRIVEHEAD, bDriveFlag| ((dwLBA >> 24) & 0xFF));
 	//send command
+	if(bMaster == TRUE)
+		bDriveFlag = HDD_DRIVEANDHEAD_LBA;
+	else
+		bDriveFlag = HDD_DRIVEANDHEAD_LBA | HDD_DRIVEANDHEAD_SLAVE;
+	kOutPortByte(wPortBase + HDD_PORT_INDEX_DRIVEHEAD, bDriveFlag| ((dwLBA >> 24) & 0xF));
+
 	if(kWaitForHDDReady(bPrimary)==FALSE){
 		kUnlock(&(gs_stHDDManager.stMutex));
 		return FALSE;
 	}
-	kSetHDDInterruptFlag(bPrimary, FALSE);
-	kOutPortByte(wPortBase + HDD_PORT_INDEX_COMMAND, HDD_COMMAND_WRITE);
+	kOutPortByte(wPortBase+HDD_PORT_INDEX_COMMAND, HDD_COMMAND_WRITE);
+	while(1){
+		bStatus = kReadHDDStatus(bPrimary);
+		if((bStatus & HDD_STATUS_ERROR) == HDD_STATUS_ERROR){
+			kUnlock(&(gs_stHDDManager.stMutex));
+			return FALSE;
+		}
+		if((bStatus & HDD_STATUS_DATAREQUEST)==HDD_STATUS_DATAREQUEST)
+			break;
+		kSleep(1);
+	}
 	//read
 	for(i = 0; i < iSectorCount; i++){
 		kSetHDDInterruptFlag(bPrimary, FALSE);
@@ -197,11 +207,10 @@ int kWriteHDDSector(BOOL bPrimary, BOOL bMaster, DWORD dwLBA, int iSectorCount, 
 			bWait = kWaitForHDDInterrupt(bPrimary);
 			kSetHDDInterruptFlag(bPrimary, FALSE);
 			if(bWait == FALSE){
-				kPrintf("Interrupt Not Occur...\n");
+				kPrintf("Write Interrupt Not Occur...\n");
 				kUnlock(&(gs_stHDDManager.stMutex));
 				return FALSE;
 			}
-
 		}
 	}
 	kUnlock(&(gs_stHDDManager.stMutex));
@@ -209,7 +218,7 @@ int kWriteHDDSector(BOOL bPrimary, BOOL bMaster, DWORD dwLBA, int iSectorCount, 
 }
 void kSetHDDInterruptFlag(BOOL bPrimary, BOOL bFlag)
 {
-	if(bPrimary)
+	if(bPrimary == TRUE)
 		gs_stHDDManager.bPrimaryInterruptOccur = bFlag;
 	else
 		gs_stHDDManager.bSecondaryInterruptOccur = bFlag;
@@ -230,25 +239,13 @@ static BYTE kReadHDDStatus(BOOL bPrimary)
 		return kInPortByte(HDD_PORT_PRIMARYBASE + HDD_PORT_INDEX_STATUS);
 	return kInPortByte(HDD_PORT_SECONDARYBASE + HDD_PORT_INDEX_STATUS);
 }
-static BOOL kIsHDDBusy(BOOL bPrimary)
-{
-	BOOL bStatus = kReadHDDStatus(bPrimary);
-	if( (bStatus & HDD_STATUS_BUSY) == HDD_STATUS_BUSY)
-		return TRUE;
-	return FALSE;
-}
-static BOOL kIsHDDReady(BOOL bPrimary)
-{
-	BOOL bStatus = kReadHDDStatus(bPrimary);
-	if( (bStatus & HDD_STATUS_READY) == HDD_STATUS_READY)
-		return TRUE;
-	return FALSE;
-}
 static BOOL kWaitForHDDNoBusy(BOOL bPrimary)
 {
 	QWORD qwLastTick = kGetTickCount();
+	BYTE bStatus;
 	while((kGetTickCount()-qwLastTick) <= HDD_WAITTIME){
-		if(kIsHDDBusy(bPrimary)!=TRUE)
+		bStatus = kReadHDDStatus(bPrimary);
+		if((bStatus & HDD_STATUS_BUSY) != HDD_STATUS_BUSY)
 			return TRUE;
 		kSleep(1);
 	}
@@ -257,8 +254,10 @@ static BOOL kWaitForHDDNoBusy(BOOL bPrimary)
 static BOOL kWaitForHDDReady(BOOL bPrimary)
 {
 	QWORD qwLastTick = kGetTickCount();
+	BYTE bStatus;
 	while((kGetTickCount()-qwLastTick) <= HDD_WAITTIME){
-		if(kIsHDDReady(bPrimary)==TRUE)
+		bStatus = kReadHDDStatus(bPrimary);
+		if((bStatus & HDD_STATUS_READY) == HDD_STATUS_READY)
 			return TRUE;
 		kSleep(1);
 	}
